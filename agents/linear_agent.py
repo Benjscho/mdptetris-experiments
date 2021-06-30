@@ -4,8 +4,6 @@ import time
 import numpy as np
 import gym_mdptetris.envs
 from gym_mdptetris.envs import board, piece, feature_functions
-import gym_mdptetris.envs.piece as piece
-import gym_mdptetris.envs.feature_functions as feature_funcs
 
 class LinearGame():
     def __init__(self, weights=np.array([-1, 1, -1, -1, -4, -1]), board_height=20, board_width=10,  piece_set='pieces4.dat', seed=12345):
@@ -26,7 +24,7 @@ class LinearGame():
 
     def get_dellacherie_features(self) -> np.ndarray:
         res = np.empty((6), dtype='double')
-        for i, f in enumerate(feature_funcs.get_dellacherie_funcs()):
+        for i, f in enumerate(feature_functions.get_dellacherie_funcs()):
             res[i] = f(self.board)
         return res 
     
@@ -49,7 +47,7 @@ class LinearGame():
 
     def play_game(self, render=False):
         cleared = 0
-        while self.board.wall_height < self.board_height:
+        while self.board.wall_height < self.board_height and cleared < 1e4:
             cleared += self.board_step()
             self.new_piece()
             if render:
@@ -60,6 +58,7 @@ class LinearGame():
 if __name__=="__main__":
     lg = LinearGame()
     start = time.time()
+    print("Starting")
     lg.play_game()
     end = time.time()
     print(f"That took {end - start}s")
