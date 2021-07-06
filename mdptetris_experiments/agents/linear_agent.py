@@ -131,7 +131,7 @@ class LinearGame():
         done = self.board.wall_height > self.board_height
         return reward, done
 
-    def play_game(self, render=False) -> None:
+    def play_game(self, render=False) -> int:
         cleared = 0
 
         done = False
@@ -142,12 +142,14 @@ class LinearGame():
             if render:
                 print(self.board)
         
-        print(f"{cleared} rows cleared")
+        return cleared
+        
 
 if __name__=="__main__":
     lg = LinearGame()
     start = time.time()
     print("Starting")
-    lg.play_game()
+    cleared = lg.play_game()
     end = time.time()
+    print(f"{cleared} rows cleared")
     print(f"That took {end - start}s")
