@@ -135,7 +135,7 @@ class LinearGame():
         cleared = 0
 
         done = False
-        while not done and cleared < 1e4:
+        while not done:
             reward, done = self.board_step()
             cleared += reward
             self.new_piece()
