@@ -7,12 +7,13 @@ import numpy as np
 import gym_mdptetris.envs
 from gym_mdptetris.envs import board, piece, feature_functions
 
+
 class LinearGame():
     def __init__(self, weights: np.ndarray = np.array([-1, 1, -1, -1, -4, -1]),
-        board_height: int = 20, 
-        board_width: int = 10,  
-        piece_set: str = 'pieces4.dat', 
-        seed: int = 12345):
+                 board_height: int = 20,
+                 board_width: int = 10,
+                 piece_set: str = 'pieces4.dat',
+                 seed: int = 12345):
         """
         Linear game of Tetris for reinforcement learning.
 
@@ -43,7 +44,7 @@ class LinearGame():
         self.new_piece()
         self.lines_cleared = 0
         self.board = board.Board(max_piece_height=self.max_piece_height,
-            width=board_width, height=board_height)
+                                 width=board_width, height=board_height)
 
     def get_dellacherie_features(self) -> torch.FloatTensor:
         """
@@ -57,13 +58,13 @@ class LinearGame():
         for f in feature_functions.get_dellacherie_funcs():
             res.append(f(self.board))
         return torch.FloatTensor(res)
-    
+
     def new_piece(self) -> None:
         """
         Select a new piece. 
         """
         self.current_piece = random.choice(range(self.nb_pieces))
-    
+
     def seed(self, seed_value: int) -> None:
         """
         Provide a new seed for the environment.
@@ -84,14 +85,15 @@ class LinearGame():
         :return: A dictionary of subsequent states, indexed by the tupel of
             piece orientation and column placement.
         """
-        states = {} 
+        states = {}
         for i in range(self.pieces[self.current_piece].nb_orientations):
             for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
-                self.board.drop_piece(self.pieces[self.current_piece].orientations[i], column=j, cancellable=True)
-                states[i,j] = self.get_dellacherie_features()
+                self.board.drop_piece(
+                    self.pieces[self.current_piece].orientations[i], column=j, cancellable=True)
+                states[i, j] = self.get_dellacherie_features()
                 self.board.cancel_last_move()
         return states
-    
+
     def step(self, action: Tuple[int, int]) -> Tuple[int, bool]:
         """
         Make one action step given the action. 
@@ -101,11 +103,11 @@ class LinearGame():
             reward: The number of lines cleared by the step
             done: Boolean indicating if the game is over
         """
-        reward = self.board.drop_piece(self.pieces[self.current_piece].orientations[action[0]], action[1])
+        reward = self.board.drop_piece(
+            self.pieces[self.current_piece].orientations[action[0]], action[1])
         done = self.board.wall_height > self.board_height
         self.lines_cleared += reward
         return reward, done
-    
 
     def board_step(self) -> Tuple[int, bool]:
         """
@@ -123,11 +125,13 @@ class LinearGame():
         for i in range(self.pieces[self.current_piece].nb_orientations):
             for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
                 self.board.drop_piece(self.pieces[self.current_piece].orientations[i],
-                    column=j, cancellable=True)
-                actions[i,j] = (self.get_dellacherie_features() * self.weights).sum()
+                                      column=j, cancellable=True)
+                actions[i, j] = (self.get_dellacherie_features()
+                                 * self.weights).sum()
                 self.board.cancel_last_move()
         a = np.unravel_index(np.argmax(actions), actions.shape)
-        reward = self.board.drop_piece(self.pieces[self.current_piece].orientations[a[0]], a[1])
+        reward = self.board.drop_piece(
+            self.pieces[self.current_piece].orientations[a[0]], a[1])
         done = self.board.wall_height > self.board_height
         return reward, done
 
@@ -141,11 +145,11 @@ class LinearGame():
             self.new_piece()
             if render:
                 print(self.board)
-        
-        return cleared
-        
 
-if __name__=="__main__":
+        return cleared
+
+
+if __name__ == "__main__":
     lg = LinearGame()
     start = time.time()
     print("Starting")
