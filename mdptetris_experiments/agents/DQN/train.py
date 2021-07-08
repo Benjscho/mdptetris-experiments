@@ -2,10 +2,8 @@ import argparse
 import os
 import random
 import time
-from collections import deque 
+from collections import deque
 
-import gym
-import gym_mdptetris
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
@@ -28,11 +26,14 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
     parser.add_argument("--epochs", type=int, default=3000)
     parser.add_argument("--target_network_update", type=int, default=5)
+    parser.add_argument("--saving_interval", type=int, default=500)
     parser.add_argument("--epsilon_decay_period", type=int, default=2000)
     parser.add_argument("--state_representation", type=str, default="board-2D")
     parser.add_argument("--log_dir", type=str, default="runs")
+    parser.add_argument("--save_dir", type=str,
+                        default=f"runs/run-info")
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--comment", type=str, default=None,
+    parser.add_argument("--comment", type=str, default="test",
                         help="Run comment for TensorBoard writer.")
 
     args = parser.parse_args()
@@ -46,19 +47,26 @@ def train(args: argparse.Namespace):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    runid = time.strftime('%Y%m%dT%H%M%SZ')
+    save_dir = f"{args.save_dir}-{runid}"
     # Writer for TensorBoard
-    writer = SummaryWriter(args.log_dir, comment=args.comment)
+    writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{runid}")
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    with open(f"{save_dir}/args.txt", 'w') as f:
+        f.write(str(args))
 
     # Set up model, network, optimizer, and memory buffer
     model = DQ_network().to(device)
     target = DQ_network().to(device)
     target.load_state_dict(model.state_dict())
+    target.eval()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.alpha)
     replay_buffer = deque(maxlen=args.replay_buffer_length)
     loss_criterion = nn.MSELoss()
-    epochs = np.array([])
-    timesteps = np.array([])
+    epochs = np.array([], dtype=np.int32)
+    timesteps = np.array([], dtype=np.int32)
 
     # Seed randomness
     if args.seed == None:
@@ -112,7 +120,9 @@ def train(args: argparse.Namespace):
         reward, done = env.step(action)
         timestep += 1
 
-        # Append step to buffer
+        # Append step to buffer and save reward
+        # If I want to save more infrequent reward I can use the buffer to batch
+        # results across timesteps.
         replay_buffer.append([state, reward, new_state, done])
         timesteps = np.append(timesteps, reward)
         if done:
@@ -133,13 +143,12 @@ def train(args: argparse.Namespace):
             np.array(reward_b, dtype=np.float32)[:, None])
         new_state_b = torch.stack(tuple(state for state in new_state_b))
 
-        q_vals = target(state_b)
+        # Use model to judge state values, train prediction against target network
+        q_vals = model(state_b)
         if torch.cuda.is_available():
             q_vals = q_vals.cuda()
-        model.eval()
         with torch.no_grad():
-            next_predictions = model(new_state_b)
-        model.train()
+            next_predictions = target(new_state_b)
 
         y_b = torch.cat(
             tuple(reward if done else reward + args.gamma * prediction for reward, done, prediction in
@@ -156,11 +165,18 @@ def train(args: argparse.Namespace):
         if epoch % args.target_network_update == 0:
             target.load_state_dict(model.state_dict())
 
+        epochs = np.append(epochs, episode_score)
         print(f"Epoch: {epoch}, score: {episode_score}")
         writer.add_scalar('Train/Lines cleared per epoch',
                           episode_score, epoch - 1)
         writer.add_scalar('Train/Lines cleared over last 100 timesteps',
                           sum(timesteps[-100:]), timestep - 1)
+
+        # Save model and current results to csv 
+        if epoch % args.saving_interval == 0:
+            torch.save(model, f"{save_dir}/model")
+            epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
+            timesteps.tofile(f"{save_dir}/timesteps.csv", sep=',')
 
 
 if __name__ == '__main__':
