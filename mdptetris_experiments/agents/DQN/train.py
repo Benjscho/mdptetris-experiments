@@ -30,6 +30,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--epsilon_decay_period", type=int, default=2000)
     parser.add_argument("--state_representation", type=str, default="board-2D")
     parser.add_argument("--log_dir", type=str, default="runs")
+    parser.add_argument("--load_file", type=str, default=None,
+                        help="Path to partially trained model")
     parser.add_argument("--save_dir", type=str,
                         default=f"runs/run-info")
     parser.add_argument("--seed", type=int, default=None)
@@ -41,6 +43,17 @@ def get_args() -> argparse.Namespace:
 
 
 def train(args: argparse.Namespace):
+    """
+    Method that initialises a network with a set of arguments and trains
+    it on a given Tetris environment.
+
+    Attribution: This code implements the DQN algorithm in Mnih, V.,
+    Kavukcuoglu, K., Silver, D. et al. Human-level control through deep
+    reinforcement learning. Nature 518, 529–533 (2015).  
+    
+    :param args: A namespace containing the hyperparameters and arguments
+        for training the model.
+    """
     # Set up environment
     env = LinearGame(board_height=args.board_height,
                      board_width=args.board_width)
@@ -57,7 +70,10 @@ def train(args: argparse.Namespace):
         f.write(str(args))
 
     # Set up model, network, optimizer, and memory buffer
-    model = DQ_network().to(device)
+    if args.load_file != None:
+        model = torch.load(args.load_file)
+    else: 
+        model = DQ_network().to(device)
     target = DQ_network().to(device)
     target.load_state_dict(model.state_dict())
     target.eval()
@@ -96,10 +112,7 @@ def train(args: argparse.Namespace):
         epsilon = args.final_epsilon + (max(args.epsilon_decay_period - epoch, 0) * (
             args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period)
         new_actions, new_states = zip(*action_states.items())
-        new_states = torch.stack(new_states)
-
-        if torch.cuda.is_available():
-            new_states = new_states.cuda()
+        new_states = torch.stack(new_states).to(device)
 
         # Predict values of next states
         model.eval()
@@ -113,9 +126,7 @@ def train(args: argparse.Namespace):
         else:
             idx = torch.argmax(predictions).item()
 
-        new_state = new_states[idx, :]
-        if torch.cuda.is_available():
-            new_state = new_state.cuda()
+        new_state = new_states[idx, :].to(device)
         action = new_actions[idx]
         reward, done = env.step(action)
         timestep += 1
@@ -125,6 +136,9 @@ def train(args: argparse.Namespace):
         # results across timesteps.
         replay_buffer.append([state, reward, new_state, done])
         timesteps = np.append(timesteps, reward)
+
+        # Skip epoch increment if episode is not done. If done, record episode
+        # score and reset env. 
         if done:
             episode_score = env.lines_cleared
             state = env.reset()
@@ -132,28 +146,29 @@ def train(args: argparse.Namespace):
             state = new_state
             continue
 
-        if len(replay_buffer) < args.batch_size:
+        # Skip training until memory buffer is 1/10th full
+        if len(replay_buffer) < args.replay_buffer_length / 10:
             continue
+
         epoch += 1
+
         batch = random.sample(replay_buffer, min(
             len(replay_buffer), args.batch_size))
         state_b, reward_b, new_state_b, done_b = zip(*batch)
-        state_b = torch.stack(tuple(state for state in state_b))
+        state_b = torch.stack(state_b).to(device)
         reward_b = torch.from_numpy(
-            np.array(reward_b, dtype=np.float32)[:, None])
-        new_state_b = torch.stack(tuple(state for state in new_state_b))
+            np.array(reward_b, dtype=np.float32)[:, None]).to(device)
+        new_state_b = torch.stack(new_state_b).to(device)
 
         # Use model to judge state values, train prediction against target network
-        q_vals = model(state_b)
-        if torch.cuda.is_available():
-            q_vals = q_vals.cuda()
+        q_vals = model(state_b).to(device)
         with torch.no_grad():
             next_predictions = target(new_state_b)
 
         y_b = torch.cat(
             tuple(reward if done else reward + args.gamma * prediction for reward, done, prediction in
                   zip(reward_b, done_b, next_predictions))
-        )[:, None]
+        )[:, None].to(device)
 
         # Calculate loss and train network
         optimizer.zero_grad()
@@ -172,7 +187,7 @@ def train(args: argparse.Namespace):
         writer.add_scalar('Train/Lines cleared over last 100 timesteps',
                           sum(timesteps[-100:]), timestep - 1)
 
-        # Save model and current results to csv 
+        # On interval, save model and current results to csv 
         if epoch % args.saving_interval == 0:
             torch.save(model, f"{save_dir}/model")
             epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
@@ -180,6 +195,6 @@ def train(args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    # Train
+    # Train the model
     args = get_args()
     train(args)

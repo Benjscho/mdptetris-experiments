@@ -42,7 +42,7 @@ class LinearGame():
                 self.max_piece_height = max(self.max_piece_height, o.height)
         random.seed(seed)
         self.new_piece()
-        self.lines_cleared = 0
+        self.lines_cleared: int = 0
         self.board = board.Board(max_piece_height=self.max_piece_height,
                                  width=board_width, height=board_height)
 
