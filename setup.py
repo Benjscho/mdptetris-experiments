@@ -9,4 +9,5 @@ setup(name='mdptetris_experiments',
     author="Ben Schofield",
     license='MIT',
     packages=['mdptetris_experiments',
-            'mdptetris_experiments.agents'])
+            'mdptetris_experiments.agents'],
+    zip_safe=False)
