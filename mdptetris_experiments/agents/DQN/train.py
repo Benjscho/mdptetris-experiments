@@ -15,6 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
@@ -58,7 +59,7 @@ def train(args: argparse.Namespace):
     env = LinearGame(board_height=args.board_height,
                      board_width=args.board_width)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
     runid = time.strftime('%Y%m%dT%H%M%SZ')
     save_dir = f"{args.save_dir}-{runid}"
