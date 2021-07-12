@@ -148,6 +148,24 @@ class LinearGame():
 
         return cleared
 
+class LinearGameStandard(LinearGame):
+    def get_next_states(self) -> dict:
+        states = {}
+        for i in range(self.pieces[self.current_piece].nb_orientations):
+            for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
+                self.board.drop_piece(
+                    self.pieces[self.current_piece].orientations[i], column=j, cancellable=True)
+                states[i, j] = self.get_state()
+                self.board.cancel_last_move()
+        return states
+
+    def get_state(self) -> torch.FloatTensor:
+        return torch.FloatTensor(self.board.board[:self.board_height,:].flatten())
+    
+    def reset(self) -> torch.FloatTensor:
+        super().reset()
+        return self.get_state()
+
 
 if __name__ == "__main__":
     lg = LinearGame()

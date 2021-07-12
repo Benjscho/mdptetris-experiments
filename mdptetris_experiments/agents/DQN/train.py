@@ -7,8 +7,8 @@ from collections import deque
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
-from mdptetris_experiments.agents.DQN.DQ_network import DQ_network
-from mdptetris_experiments.agents.linear_agent import LinearGame
+from mdptetris_experiments.agents.DQN.DQ_network import DQN_1D, DQ_network
+from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
@@ -29,7 +29,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--target_network_update", type=int, default=5)
     parser.add_argument("--saving_interval", type=int, default=500)
     parser.add_argument("--epsilon_decay_period", type=int, default=2000)
-    parser.add_argument("--state_representation", type=str, default="board-2D")
+    parser.add_argument("--state_rep", type=str, default="heuristic")
     parser.add_argument("--log_dir", type=str, default="runs")
     parser.add_argument("--load_file", type=str, default=None,
                         help="Path to partially trained model")
@@ -42,6 +42,10 @@ def get_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+state_rep = {
+    "heuristic": [DQ_network, LinearGame],
+    "1D": [DQN_1D, LinearGameStandard]
+}
 
 def train(args: argparse.Namespace):
     """
@@ -56,7 +60,7 @@ def train(args: argparse.Namespace):
         for training the model.
     """
     # Set up environment
-    env = LinearGame(board_height=args.board_height,
+    env = state_rep[args.state_rep][1](board_height=args.board_height,
                      board_width=args.board_width)
 
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
@@ -74,8 +78,8 @@ def train(args: argparse.Namespace):
     if args.load_file != None:
         model = torch.load(args.load_file)
     else: 
-        model = DQ_network().to(device)
-    target = DQ_network().to(device)
+        model = state_rep[args.state_rep][0]().to(device)
+    target = state_rep[args.state_rep][0]().to(device)
     target.load_state_dict(model.state_dict())
     target.eval()
 
