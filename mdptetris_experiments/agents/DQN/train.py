@@ -102,9 +102,7 @@ def train(args: argparse.Namespace):
         else:
             torch.manual_seed(args.seed)
 
-    state = env.reset()
-    if torch.cuda.is_available():
-        state = state.cuda()
+    state = env.reset().to(device)
 
     epoch = 0
     timestep = 0
