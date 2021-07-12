@@ -154,7 +154,7 @@ def train(args: argparse.Namespace):
         batch = random.sample(replay_buffer, min(
             len(replay_buffer), args.batch_size))
         state_b, reward_b, new_state_b, done_b = zip(*batch)
-        state_b = torch.stack(state_b).to(device)
+        state_b = torch.stack(tuple(state for state in state_b)).to(device)
         reward_b = torch.from_numpy(
             np.array(reward_b, dtype=np.float32)[:, None]).to(device)
         new_state_b = torch.stack(new_state_b).to(device)
