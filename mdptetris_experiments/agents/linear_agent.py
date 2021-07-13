@@ -149,6 +149,9 @@ class LinearGame():
         return cleared
 
 class LinearGameStandard(LinearGame):
+    """
+    Linear game that utilises a 1D state space for state value approximation.
+    """
     def get_next_states(self) -> dict:
         states = {}
         for i in range(self.pieces[self.current_piece].nb_orientations):

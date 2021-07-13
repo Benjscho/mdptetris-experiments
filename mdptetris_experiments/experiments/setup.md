@@ -17,3 +17,6 @@ cd ./mdptetris-experiments && pip3 install -e .
 ssh -L 8080:localhost:6006 bjs82@garlick.cs.bath.ac.uk 
 ssh -L <local machine port>:localhost:<remote machine port> <username>@example.com
 ```
+
+## See reserved disk 
+`hare me`
