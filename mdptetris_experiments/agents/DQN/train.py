@@ -185,9 +185,9 @@ def train(args: argparse.Namespace):
 
         epochs = np.append(epochs, episode_score)
         print(f"Epoch: {epoch}, score: {episode_score}")
-        writer.add_scalar('Train/Lines cleared per epoch',
+        writer.add_scalar(f'Train-{runid}/Lines cleared per epoch',
                           episode_score, epoch - 1)
-        writer.add_scalar('Train/Lines cleared over last 100 timesteps',
+        writer.add_scalar(f'Train-{runid}/Lines cleared over last 100 timesteps',
                           sum(timesteps[-100:]), timestep - 1)
 
         # On interval, save model and current results to csv 
