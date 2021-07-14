@@ -169,6 +169,32 @@ class LinearGameStandard(LinearGame):
         super().reset()
         return self.get_state()
 
+class MultiLinearGame():
+    def __init__(self, nb_games: int = 10, 
+                 weights: np.ndarray = np.array([-1, 1, -1, -1, -4, -1]),
+                 board_height: int = 20,
+                 board_width: int = 10,
+                 piece_set: str = 'pieces4.dat',
+                 seed: int = 12345):
+        self.games = [] 
+        for _ in range(nb_games):
+            self.games.append(LinearGame(weights=weights, board_height=board_height,
+                              board_width=board_width, piece_set=piece_set, seed=seed))
+
+    def seed(self, seed_value):
+        for game in self.games:
+            game.seed(seed_value)
+        
+    def reset(self):
+        pass
+
+    def get_next_states(self):
+        pass 
+
+    def step(self, actions):
+        pass
+    
+    
 
 if __name__ == "__main__":
     lg = LinearGame()
