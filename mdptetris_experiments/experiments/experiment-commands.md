@@ -5,3 +5,5 @@
 
 ## Flattened array DQN
 `python mdptetris_experiments/agents/DQN/train.py --state_rep="1D"`
+
+`python mdptetris_experiments/agents/DQN/train.py --state_rep="1D" --epochs=10000 --epsilon_decay_period=6000`

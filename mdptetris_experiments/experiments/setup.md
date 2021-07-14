@@ -20,3 +20,13 @@ ssh -L <local machine port>:localhost:<remote machine port> <username>@example.c
 
 ## See reserved disk 
 `hare me`
+
+## Retrieve files
+```
+# Compress runs 
+tar -cvzf runs.tar.gz ./runs 
+# Retrieve them with scp
+scp bjs82@garlick.cs.bath.ac.uk:/mnt/fast0/bjs82/runs.tar.gz /Users/crow/Desktop/bath-msc-main/cm50170-Diss/experiment-results
+# Extract 
+tar -xvzf runs.tar.gz
+```
