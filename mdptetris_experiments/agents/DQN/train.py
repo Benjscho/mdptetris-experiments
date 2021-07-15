@@ -75,11 +75,12 @@ def train(args: argparse.Namespace):
         f.write(str(args))
 
     # Set up model, network, optimizer, and memory buffer
+    input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
     if args.load_file != None:
         model = torch.load(args.load_file)
     else: 
-        model = state_rep[args.state_rep][0]().to(device)
-    target = state_rep[args.state_rep][0]().to(device)
+        model = state_rep[args.state_rep][0](input_dims).to(device)
+    target = state_rep[args.state_rep][0](input_dims).to(device)
     target.load_state_dict(model.state_dict())
     target.eval()
 

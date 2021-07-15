@@ -7,9 +7,9 @@ class DQ_network(nn.Module):
     Define a neural network for use in DQN with a heuristic input. 
     """
 
-    def __init__(self):
+    def __init__(self, input_dims: int=6):
         super(DQ_network, self).__init__()
-        self.conv1 = nn.Sequential(nn.Linear(6, 64), nn.ReLU(inplace=True))
+        self.conv1 = nn.Sequential(nn.Linear(input_dims, 64), nn.ReLU(inplace=True))
         self.conv2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
         self.conv3 = nn.Sequential(nn.Linear(64, 1))
 
@@ -25,9 +25,9 @@ class DQ_network(nn.Module):
         return x
 
 class DQN_1D(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dims=200):
         super(DQN_1D, self).__init__()
-        self.conv1 = nn.Sequential(nn.Linear(200, 256), nn.ReLU(inplace=True))
+        self.conv1 = nn.Sequential(nn.Linear(input_dims, 256), nn.ReLU(inplace=True))
         self.conv2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(inplace=True))
         self.conv3 = nn.Sequential(nn.Linear(256, 1))
     
