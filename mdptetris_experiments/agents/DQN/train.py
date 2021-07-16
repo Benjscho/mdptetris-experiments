@@ -45,15 +45,22 @@ def get_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+
 state_rep = {
     "heuristic": [NNHeuristic, LinearGame],
     "1D": [NN1D, LinearGameStandard]
 }
 
-def save(save_dir, model, epochs, timesteps):
+
+def save(save_dir: str, model: nn.Module, epochs: np.ndarray, timesteps: np.ndarray):
+    """
+    Method to save the current model state, the current saved epoch rewards, and
+    the current saved timestep rewards.
+    """
     torch.save(model, f"{save_dir}/model")
     epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
     timesteps.tofile(f"{save_dir}/timesteps.csv", sep=',')
+
 
 def train(args: argparse.Namespace):
     """
@@ -69,9 +76,10 @@ def train(args: argparse.Namespace):
     """
     # Set up environment
     env = state_rep[args.state_rep][1](board_height=args.board_height,
-                     board_width=args.board_width)
+                                       board_width=args.board_width)
 
-    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
     runid = time.strftime('%Y%m%dT%H%M%SZ')
     save_dir = f"{args.save_dir}-{runid}"
@@ -86,7 +94,7 @@ def train(args: argparse.Namespace):
     input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
     if args.load_file != None:
         model = torch.load(args.load_file)
-    else: 
+    else:
         model = state_rep[args.state_rep][0](input_dims).to(device)
     target = state_rep[args.state_rep][0](input_dims).to(device)
     target.load_state_dict(model.state_dict())
@@ -150,7 +158,7 @@ def train(args: argparse.Namespace):
         timesteps = np.append(timesteps, reward)
 
         # Skip epoch increment if episode is not done. If done, record episode
-        # score and reset env. 
+        # score and reset env.
         if done:
             episode_score = env.lines_cleared
             state = env.reset().to(device)
@@ -199,7 +207,7 @@ def train(args: argparse.Namespace):
         writer.add_scalar(f'Train-{runid}/Lines cleared over last 100 timesteps',
                           sum(timesteps[-100:]), timestep - 1)
 
-        # On interval, save model and current results to csv 
+        # On interval, save model and current results to csv
         if epoch % args.saving_interval == 0:
             save(save_dir, model, epochs, timesteps)
 
