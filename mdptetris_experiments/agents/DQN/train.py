@@ -8,7 +8,8 @@ import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
 from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic
-from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard
+from mdptetris_experiments.agents.linear_agent import (LinearGame,
+                                                       LinearGameStandard)
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
