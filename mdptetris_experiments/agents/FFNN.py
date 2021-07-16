@@ -1,16 +1,16 @@
-from numpy import isin
 from torch import nn
+import torch.nn.functional as F
 
 
-class DQ_network(nn.Module):
+class NNHeuristic(nn.Module):
     """
     Define a neural network for use in DQN with a heuristic input. 
     """
 
     def __init__(self, input_dims: int=6):
-        super(DQ_network, self).__init__()
-        self.conv1 = nn.Sequential(nn.Linear(input_dims, 64), nn.ReLU(inplace=True))
-        self.conv2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
+        super(NNHeuristic, self).__init__()
+        self.conv1 = nn.Sequential(nn.Linear(input_dims, 64))
+        self.conv2 = nn.Sequential(nn.Linear(64, 64))
         self.conv3 = nn.Sequential(nn.Linear(64, 1))
 
     def _initialise_weights(self):
@@ -19,16 +19,16 @@ class DQ_network(nn.Module):
                 nn.init.xavier_uniform_(mod.bias, 0)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         x = self.conv3(x)
         return x
 
-class DQN_1D(nn.Module):
+class NN1D(nn.Module):
     def __init__(self, input_dims=200):
-        super(DQN_1D, self).__init__()
-        self.conv1 = nn.Sequential(nn.Linear(input_dims, 256), nn.ReLU(inplace=True))
-        self.conv2 = nn.Sequential(nn.Linear(256, 256), nn.ReLU(inplace=True))
+        super(NN1D, self).__init__()
+        self.conv1 = nn.Sequential(nn.Linear(input_dims, 256))
+        self.conv2 = nn.Sequential(nn.Linear(256, 256))
         self.conv3 = nn.Sequential(nn.Linear(256, 1))
     
     def _initialise_weights(self):
@@ -37,8 +37,8 @@ class DQN_1D(nn.Module):
                 nn.init.xavier_uniform_(mod.bias, 0)
     
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
         x = self.conv3(x)
         return x
 

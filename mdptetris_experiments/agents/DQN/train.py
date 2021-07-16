@@ -7,7 +7,7 @@ from collections import deque
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
-from mdptetris_experiments.agents.DQN.DQ_network import DQN_1D, DQ_network
+from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic
 from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
@@ -19,14 +19,17 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
-    parser.add_argument("--reward_buffer_length", type=int, default=200)
+    parser.add_argument("--training_start", type=int, default=2000,
+                        help="Minimum timesteps for training to start.")
     parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--alpha", type=float, default=1e-4)
+    parser.add_argument("--alpha", type=float, default=1e-4,
+                        help="Optimiser learning rate.")
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--init_epsilon", type=float, default=1)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
     parser.add_argument("--epochs", type=int, default=3000)
-    parser.add_argument("--target_network_update", type=int, default=5)
+    parser.add_argument("--target_network_update", type=int, default=5,
+                        help="Epoch interval to update the target network.")
     parser.add_argument("--saving_interval", type=int, default=500)
     parser.add_argument("--epsilon_decay_period", type=int, default=2000)
     parser.add_argument("--state_rep", type=str, default="heuristic")
@@ -43,9 +46,14 @@ def get_args() -> argparse.Namespace:
     return args
 
 state_rep = {
-    "heuristic": [DQ_network, LinearGame],
-    "1D": [DQN_1D, LinearGameStandard]
+    "heuristic": [NNHeuristic, LinearGame],
+    "1D": [NN1D, LinearGameStandard]
 }
+
+def save(save_dir, model, epochs, timesteps):
+    torch.save(model, f"{save_dir}/model")
+    epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
+    timesteps.tofile(f"{save_dir}/timesteps.csv", sep=',')
 
 def train(args: argparse.Namespace):
     """
@@ -150,8 +158,8 @@ def train(args: argparse.Namespace):
             state = new_state
             continue
 
-        # Skip training until memory buffer is 1/10th full
-        if len(replay_buffer) < args.replay_buffer_length / 10:
+        # Skip training until memory buffer exceeds min timesteps
+        if len(replay_buffer) < args.training_start:
             continue
 
         epoch += 1
@@ -193,9 +201,10 @@ def train(args: argparse.Namespace):
 
         # On interval, save model and current results to csv 
         if epoch % args.saving_interval == 0:
-            torch.save(model, f"{save_dir}/model")
-            epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
-            timesteps.tofile(f"{save_dir}/timesteps.csv", sep=',')
+            save(save_dir, model, epochs, timesteps)
+
+    # Save on completion
+    save(save_dir, model, epochs, timesteps)
 
 
 if __name__ == '__main__':
