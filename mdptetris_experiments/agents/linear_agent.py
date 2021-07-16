@@ -186,13 +186,27 @@ class MultiLinearGame():
             game.seed(seed_value)
         
     def reset(self):
-        pass
+        observations = []
+        for game in self.games:
+            observations.append(game.reset())
+        
+        return observations
 
     def get_next_states(self):
-        pass 
+        states = []
+        for game in self.games:
+            states.append(game.get_next_states())
+        return states
 
     def step(self, actions):
-        pass
+        observations = []
+        rewards = []
+        for action, game in zip(actions, self.games):
+            obs, r = game.step(action)
+            observations.append(obs)
+            rewards.append(r)
+        return observations, rewards
+        
     
     
 
