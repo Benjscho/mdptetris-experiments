@@ -57,6 +57,11 @@ def save(save_dir: str, model: nn.Module, epochs: np.ndarray, timesteps: np.ndar
     """
     Method to save the current model state, the current saved epoch rewards, and
     the current saved timestep rewards.
+
+    :param save_dir: The directory to save the results in, typically using a runID
+    :param model: The current model of the run
+    :param epochs: The array of epoch data
+    :param timesteps: The array of timestep data
     """
     torch.save(model, f"{save_dir}/model")
     epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
@@ -186,10 +191,10 @@ def train(args: argparse.Namespace):
         with torch.no_grad():
             next_predictions = target(new_state_b)
 
-        y_b = torch.cat(
-            tuple(reward if done else reward + args.gamma * prediction for reward, done, prediction in
-                  zip(reward_b, done_b, next_predictions))
-        )[:, None].to(device)
+        y_b = []
+        for reward, done, prediction in zip(reward_b, done_b, next_predictions):
+            y_b.append(reward if done else reward + args.gamma*prediction)
+        y_b = torch.cat(y_b).to(device)
 
         # Calculate loss and train network
         optimizer.zero_grad()
