@@ -46,7 +46,7 @@ class LinearGame():
         self.board = board.Board(max_piece_height=self.max_piece_height,
                                  width=board_width, height=board_height)
 
-    def get_dellacherie_features(self) -> torch.FloatTensor:
+    def get_state(self) -> torch.FloatTensor:
         """
         Get the heuristic representation of a board state as the set of
         6 Dellacherie features.
@@ -75,7 +75,7 @@ class LinearGame():
         self.board.reset()
         self.new_piece()
         self.lines_cleared = 0
-        return self.get_dellacherie_features()
+        return self.get_state()
 
     def get_next_states(self) -> dict:
         """
@@ -90,7 +90,7 @@ class LinearGame():
             for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
                 self.board.drop_piece(
                     self.pieces[self.current_piece].orientations[i], column=j, cancellable=True)
-                states[i, j] = self.get_dellacherie_features()
+                states[i, j] = self.get_state()
                 self.board.cancel_last_move()
         return states
 
@@ -126,7 +126,7 @@ class LinearGame():
             for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
                 self.board.drop_piece(self.pieces[self.current_piece].orientations[i],
                                       column=j, cancellable=True)
-                actions[i, j] = (self.get_dellacherie_features()
+                actions[i, j] = (self.get_state()
                                  * self.weights).sum()
                 self.board.cancel_last_move()
         a = np.unravel_index(np.argmax(actions), actions.shape)
@@ -148,10 +148,12 @@ class LinearGame():
 
         return cleared
 
+
 class LinearGameStandard(LinearGame):
     """
     Linear game that utilises a 1D state space for state value approximation.
     """
+
     def get_next_states(self) -> dict:
         states = {}
         for i in range(self.pieces[self.current_piece].nb_orientations):
@@ -163,20 +165,21 @@ class LinearGameStandard(LinearGame):
         return states
 
     def get_state(self) -> torch.FloatTensor:
-        return torch.FloatTensor(self.board.board[:self.board_height,:].flatten())
-    
+        return torch.FloatTensor(self.board.board[:self.board_height, :].flatten())
+
     def reset(self) -> torch.FloatTensor:
         super().reset()
         return self.get_state()
 
+
 class MultiLinearGame():
-    def __init__(self, nb_games: int = 10, 
+    def __init__(self, nb_games: int = 10,
                  weights: np.ndarray = np.array([-1, 1, -1, -1, -4, -1]),
                  board_height: int = 20,
                  board_width: int = 10,
                  piece_set: str = 'pieces4.dat',
                  seed: int = 12345):
-        self.games = [] 
+        self.games = []
         for _ in range(nb_games):
             self.games.append(LinearGame(weights=weights, board_height=board_height,
                               board_width=board_width, piece_set=piece_set, seed=seed))
@@ -184,12 +187,12 @@ class MultiLinearGame():
     def seed(self, seed_value):
         for game in self.games:
             game.seed(seed_value)
-        
+
     def reset(self):
         observations = []
         for game in self.games:
             observations.append(game.reset())
-        
+
         return observations
 
     def get_next_states(self):
@@ -199,16 +202,14 @@ class MultiLinearGame():
         return states
 
     def step(self, actions):
-        observations = []
         rewards = []
+        dones = []
         for action, game in zip(actions, self.games):
-            obs, r = game.step(action)
-            observations.append(obs)
+            r, d = game.step(action)
             rewards.append(r)
-        return observations, rewards
-        
-    
-    
+            dones.append(d)
+        return rewards, dones
+
 
 if __name__ == "__main__":
     lg = LinearGame()
