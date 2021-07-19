@@ -111,6 +111,8 @@ def train(args: argparse.Namespace):
     loss_criterion = nn.MSELoss()
     epochs = np.array([], dtype=np.int32)
     timesteps = np.array([], dtype=np.int32)
+    epsilon = args.init_epsilon
+    epsilon_decay_rate = (args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
 
     # Seed randomness
     if args.seed == None:
@@ -136,8 +138,6 @@ def train(args: argparse.Namespace):
     temp_ep_score = 0
     while epoch < args.epochs:
         action_states = env.get_next_states()
-        epsilon = args.final_epsilon + (max(args.epsilon_decay_period - epoch, 0) * (
-            args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period)
         new_actions, new_states = zip(*action_states.items())
         new_states = torch.stack(new_states).to(device)
 
@@ -178,8 +178,11 @@ def train(args: argparse.Namespace):
         # Skip training until memory buffer exceeds min timesteps
         if len(replay_buffer) < args.training_start:
             continue
-
+        
+        # Epoch increase and decrement epsilon
         epoch += 1
+        epsilon -= epsilon_decay_rate
+        epsilon = min(epsilon, args.final_epsilon)
 
         batch = random.sample(replay_buffer, min(
             len(replay_buffer), args.batch_size))
@@ -215,6 +218,7 @@ def train(args: argparse.Namespace):
                           episode_score, epoch - 1)
         writer.add_scalar(f'Train-{runid}/Lines cleared over last 100 timesteps',
                           sum(timesteps[-100:]), timestep - 1)
+        writer.add_scalar(f'Train-{runid}/Epsilon vlaue', epsilon, epoch - 1)
 
         # On interval, save model and current results to csv
         if epoch % args.saving_interval == 0:
