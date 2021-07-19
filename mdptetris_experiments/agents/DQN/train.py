@@ -133,6 +133,7 @@ def train(args: argparse.Namespace):
 
     epoch = 0
     timestep = 0
+    temp_ep_score = 0
     while epoch < args.epochs:
         action_states = env.get_next_states()
         epsilon = args.final_epsilon + (max(args.epsilon_decay_period - epoch, 0) * (
@@ -155,6 +156,7 @@ def train(args: argparse.Namespace):
         new_state = new_states[idx, :].to(device)
         action = new_actions[idx]
         reward, done = env.step(action)
+        temp_ep_score += reward
         timestep += 1
 
         # Append step to buffer and save reward
@@ -166,7 +168,8 @@ def train(args: argparse.Namespace):
         # Skip epoch increment if episode is not done. If done, record episode
         # score and reset env.
         if done:
-            episode_score = env.lines_cleared
+            episode_score = temp_ep_score
+            temp_ep_score = 0
             state = env.reset().to(device)
         else:
             state = new_state
