@@ -61,7 +61,7 @@ class LinearGame():
 
     def new_piece(self) -> None:
         """
-        Select a new piece. 
+        Select a new piece for the game. 
         """
         self.current_piece = random.choice(range(self.nb_pieces))
 
@@ -72,6 +72,11 @@ class LinearGame():
         random.seed(seed_value)
 
     def reset(self) -> torch.FloatTensor:
+        """
+        Reset the game and return the new board state. 
+
+        return: Current board state
+        """
         self.board.reset()
         self.new_piece()
         self.lines_cleared = 0
@@ -154,22 +159,13 @@ class LinearGameStandard(LinearGame):
     Linear game that utilises a 1D state space for state value approximation.
     """
 
-    def get_next_states(self) -> dict:
-        states = {}
-        for i in range(self.pieces[self.current_piece].nb_orientations):
-            for j in range(self.board_width - self.pieces[self.current_piece].orientations[i].width + 1):
-                self.board.drop_piece(
-                    self.pieces[self.current_piece].orientations[i], column=j, cancellable=True)
-                states[i, j] = self.get_state()
-                self.board.cancel_last_move()
-        return states
-
     def get_state(self) -> torch.FloatTensor:
-        return torch.FloatTensor(self.board.board[:self.board_height, :].flatten())
+        """
+        Override method that returns the current board as the game state. 
 
-    def reset(self) -> torch.FloatTensor:
-        super().reset()
-        return self.get_state()
+        return: Board state as 1D flattened array.
+        """
+        return torch.FloatTensor(self.board.board[:self.board_height, :].flatten())
 
 
 class MultiLinearGame():
