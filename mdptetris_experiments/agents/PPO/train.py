@@ -25,8 +25,10 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_timesteps", type=int, default=4500)
+    parser.add_argument("--max_episode_timesteps", type=int, default=2000)
     parser.add_argument("--nb_games", type=int, default=20)
-    parser.add_argument("--alpha", type=float, default=1e-4)
+    parser.add_argument("--alpha", type=float, default=1e-3)
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--init_epsilon", type=float, default=1)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
@@ -53,13 +55,22 @@ state_rep = {
 }
 
 class PPO():
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, args: argparse.Namespace, policy_net, env):
         self.args = args
+
+        self.env = env 
+        self.obs_dim = env.observation_space.shape[0]
+        self.action_dim = env.action_space.shape[0]
+        # Initialise hyperparams
+        for arg, val in vars(args).items():
+            exec(f'self.{arg} = {val}')
+
+        self.actor = policy_net
 
 
     def train(self, total_timesteps):
         """
-        Train the agent for a number of timesteps. 
+        Train the agent networks for a number of timesteps. 
         """
         pass
 
@@ -84,7 +95,8 @@ class PPO():
             obs = env.reset()
             done = False
 
-            
+    def rewards_to_go(self):
+        pass
 
     def get_action(self, state):
         """
@@ -99,8 +111,19 @@ class PPO():
 
         res = actor_network(state)
 
+    def evaluate(self):
+        """
+        Estimate observation values. 
+        """
+        pass
+
     def save(self):
         """
         Save current agent state and associated run log details. 
         """
         pass
+
+    def _log(self):
+        """
+        Log info about training 
+        """
