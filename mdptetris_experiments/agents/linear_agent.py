@@ -82,6 +82,10 @@ class LinearGame():
         self.lines_cleared = 0
         return self.get_state()
 
+    def render(self):
+        print(self.pieces[self.current_piece])
+        print(self.board)
+
     def get_next_states(self) -> dict:
         """
         Returns a dictionary of subsequent states that are reachable with the

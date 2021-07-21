@@ -16,6 +16,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--load_file", type=str, default=None,
                         help="Path to trained model")
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--render", type=bool, default=False)
     parser.add_argument("--total_timesteps", type=int, default=10000)
     parser.add_argument("--save_dir", type=str,
                         default=f"runs/run-info")
@@ -64,6 +65,8 @@ def test(args: argparse.Namespace):
     ep_score = 0
 
     while timestep < args.total_timesteps:
+        if args.render:
+            env.render()
         action_states = env.get_next_states()
         new_actions, new_states = zip(*action_states.items())
         new_states = torch.stack(new_states).to(device)
