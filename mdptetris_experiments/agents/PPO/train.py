@@ -18,41 +18,6 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
 
-def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gpu", type=str, default='0',
-                        help="The GPU to train the agent on")
-    parser.add_argument("--board_height", type=int, default=20)
-    parser.add_argument("--board_width", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--batch_timesteps", type=int, default=4500)
-    parser.add_argument("--max_episode_timesteps", type=int, default=2000)
-    parser.add_argument("--nb_games", type=int, default=20)
-    parser.add_argument("--alpha", type=float, default=1e-3)
-    parser.add_argument("--gamma", type=float, default=0.99)
-    parser.add_argument("--init_epsilon", type=float, default=1)
-    parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--epochs", type=int, default=3000)
-    parser.add_argument("--target_network_update", type=int, default=5)
-    parser.add_argument("--saving_interval", type=int, default=500)
-    parser.add_argument("--epsilon_decay_period", type=int, default=2000)
-    parser.add_argument("--state_rep", type=str, default="heuristic")
-    parser.add_argument("--log_dir", type=str, default="runs")
-    parser.add_argument("--load_file", type=str, default=None,
-                        help="Path to partially trained model")
-    parser.add_argument("--save_dir", type=str,
-                        default=f"runs/run-info")
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--comment", type=str, default="test",
-                        help="Run comment for TensorBoard writer.")
-
-    args = parser.parse_args()
-    return args
-
-state_rep = {
-    "heuristic": [NNHeuristic, MultiLinearGame],
-    "1D": [NN1D, LinearGameStandard]
-}
 
 class PPO():
     def __init__(self, args: argparse.Namespace, policy_net, env):
@@ -162,8 +127,17 @@ class PPO():
         pass
 
     def _init_hyperparams(self, args: argparse.Namespace):
-
-        
+        # Set default hyperparams
+        self.board_height = 20
+        self.board_width = 10
+        self.batch_size = 512
+        self.batch_timesteps = 4500
+        self.max_episode_timesteps = 2000
+        self.nb_games = 20
+        self.alpha = 1e-3
+        self.gamma = 0.99
+        self.saving_interval = 500
+        self.ep
 
         self.device = torch.device(
             f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
