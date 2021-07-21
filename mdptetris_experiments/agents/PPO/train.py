@@ -62,10 +62,17 @@ class PPO():
         self.obs_dim = env.observation_space.shape[0]
         self.action_dim = env.action_space.shape[0]
         # Initialise hyperparams
-        for arg, val in vars(args).items():
-            exec(f'self.{arg} = {val}')
+        self._init_hyperparams(args)
+        
 
-        self.actor = policy_net
+        self.actor = policy_net(self.obs_dim, self.action_dim)
+        self.critic = policy_net(self.obs_dim, 1)
+
+        self.optimiser_actor = torch.optim.Adam(self.actor.parameters(), lr = args.alpha)
+        self.optimiser_critic = torch.optim.Adam(self.critic.parameters(), lr = args.alpha)
+
+        self.cov_vars = torch.full(size=(self.action_dim), fill_value=0.5)
+        self.cov_matrix = torch.diag(self.cov_vars)
 
 
     def train(self, total_timesteps):
@@ -89,11 +96,29 @@ class PPO():
         ep_rewards = []
 
         timesteps = 0
-        while timesteps < batch_timesteps:
+        while timesteps < self.batch_timesteps:
             ep_rewards = []
 
             obs = env.reset()
             done = False
+
+            for ep_t in range(self.max_episode_timesteps):
+                timesteps += 1
+                state_b.append(obs)
+
+                action, log_prob = self.get_action(obs)
+                obs, rew, done, _ = self.env.step(action)
+
+                ep_rewards.append(rew)
+                action_b.append(action)
+                log_probs_b.append(log_prob)
+                if done:
+                    break
+            
+            rewards_b.append(ep_rewards)
+            ep_len_b.append(ep_t + 1)
+        
+        state_b = torch.tensor(state_b, dtype=torch.float).to(self.device)
 
     def rewards_to_go(self):
         pass
@@ -108,13 +133,26 @@ class PPO():
             action: The action to take
             log_prob: The log probability of the selected action
         """
+        # Get mean action
+        res = self.actor(state)
 
-        res = actor_network(state)
+        # Create distribution from mean
+        dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
+
+        # Sample action from distribution
+        action = dist.sample()
+
+        # Calculate action log probability
+        log_prob = dist.log_prob(action)
+
+        # Return sampled action and its log probability
+        return action.detach().numpy(), log_prob.detach()
 
     def evaluate(self):
         """
         Estimate observation values. 
         """
+        V = self.critic()
         pass
 
     def save(self):
@@ -122,6 +160,16 @@ class PPO():
         Save current agent state and associated run log details. 
         """
         pass
+
+    def _init_hyperparams(self, args: argparse.Namespace):
+
+        
+
+        self.device = torch.device(
+            f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+
+        for arg, val in vars(args).items():
+            exec(f'self.{arg} = {val}')
 
     def _log(self):
         """
