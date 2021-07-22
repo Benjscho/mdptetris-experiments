@@ -85,8 +85,18 @@ class PPO():
         
         state_b = torch.tensor(state_b, dtype=torch.float).to(self.device)
 
-    def rewards_to_go(self):
-        pass
+    def rewards_to_go(self, rewards_b):
+
+        batch_rtg = []
+
+        for ep_reward in reversed(rewards_b):
+            discounted_reward = 0
+            for reward in reversed(ep_reward):
+                discounted_reward = reward + discounted_reward * self.gamma
+                batch_rtg.insert(0, discounted_reward)
+
+        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float)
+        return batch_rtg
 
     def get_action(self, state):
         """
@@ -113,12 +123,16 @@ class PPO():
         # Return sampled action and its log probability
         return action.detach().numpy(), log_prob.detach()
 
-    def evaluate(self):
+    def evaluate(self, state_b, action_b):
         """
         Estimate observation values. 
         """
-        V = self.critic()
-        pass
+        V = self.critic(state_b).squeeze()
+
+        res = self.actor(state_b)
+        dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
+        log_probs = dist.log_prob(action_b)
+        return V, log_probs
 
     def save(self):
         """
