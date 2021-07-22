@@ -131,13 +131,14 @@ class PPO():
         self.board_height = 20
         self.board_width = 10
         self.batch_size = 512
-        self.batch_timesteps = 4500
+        self.batch_timesteps = 10000
         self.max_episode_timesteps = 2000
         self.nb_games = 20
         self.alpha = 1e-3
         self.gamma = 0.99
         self.saving_interval = 500
-        self.ep
+        self.clip = 0.2
+        self.updates_per_iter = 5
 
         self.device = torch.device(
             f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
@@ -145,7 +146,24 @@ class PPO():
         for arg, val in vars(args).items():
             exec(f'self.{arg} = {val}')
 
+        # Set seed 
+        if args.seed == None:
+            seed = int(time.time())
+            random.seed(seed)
+            self.env.seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+            else:
+                torch.manual_seed(seed)
+        else:
+            random.seed(args.seed)
+            self.env.seed(args.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(args.seed)
+            else:
+                torch.manual_seed(args.seed)
+
     def _log(self):
         """
-        Log info about training 
+        Log info about training to TensorBoard and print to console. 
         """
