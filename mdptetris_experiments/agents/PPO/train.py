@@ -54,7 +54,6 @@ class PPO():
         action_b = []
         log_probs_b = []
         rewards_b = []
-        rewards_tg_b = []
         ep_len_b = []
 
         # Track rewards per episode
@@ -83,7 +82,12 @@ class PPO():
             rewards_b.append(ep_rewards)
             ep_len_b.append(ep_t + 1)
         
-        state_b = torch.tensor(state_b, dtype=torch.float).to(self.device)
+        state_b = torch.tensor(state_b, dtype=torch.float)
+        action_b = torch.tensor(action_b, dtype=torch.float)
+        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
+        rewards_tg_b = self.rewards_to_go(rewards_b)
+
+        return state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b
 
     def rewards_to_go(self, rewards_b):
 
@@ -159,6 +163,15 @@ class PPO():
 
         for arg, val in vars(args).items():
             exec(f'self.{arg} = {val}')
+
+        # Setup runid, save dir, and tensorboard writer
+        runid = time.strftime('%Y%m%dT%H%M%SZ')
+        save_dir = f"{args.save_dir}-{runid}"
+        writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{runid}")
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        with open(f"{save_dir}/args.txt", 'w') as f:
+            f.write(str(args))
 
         # Set seed 
         if args.seed == None:
