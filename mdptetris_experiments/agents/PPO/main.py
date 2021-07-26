@@ -1,7 +1,10 @@
 import argparse
+from mdptetris_experiments.agents.action_networks import NNHeuristicAction
 
 from mdptetris_experiments.agents.FFNN import NNHeuristic, NN1D
+from gym_mdptetris.envs.tetris import Tetris
 from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard, MultiLinearGame
+from train import PPO
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -36,3 +39,9 @@ state_rep = {
 
 def __main__():
     args = get_args()
+
+    env = Tetris(board_height=args.board_height, board_width=args.board_width, seed=args.seed)
+    
+    model = PPO(args, NNHeuristicAction, env)
+
+    model.train(200_000_000)

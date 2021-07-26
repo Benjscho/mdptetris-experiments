@@ -44,7 +44,44 @@ class PPO():
         """
         Train the agent networks for a number of timesteps. 
         """
-        pass
+        current_timesteps = 0
+        epochs = 0
+        while current_timesteps < total_timesteps:
+            state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b = self.rollout()
+            current_timesteps += np.sum(ep_len_b)
+
+            epochs += 1
+
+            # Calculate advantage for current iteration
+            V, _ = self.evaluate(state_b, action_b)
+            A_k = rewards_tg_b - V.detach()
+
+            # Normalise advantages to decrease variance and improve convergence
+            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+
+            for _ in range(self.updates_per_iter):
+                V, curr_log_probs = self.evaluate(state_b, action_b)
+
+                # Calculate ratio
+                ratios = torch.exp(curr_log_probs - log_probs_b)
+
+                # Surrogate losses
+                surr1 = ratios * A_k
+                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+
+                actor_loss = (-torch.min(surr1, surr2)).mean()
+                critic_loss = nn.MSELoss()(V, rewards_tg_b)
+
+                self.optimiser_actor.zero_grad()
+                actor_loss.backward(retain_graph=True)
+                self.optimiser_actor.step()
+
+                self.optimiser_critic.zero_grad()
+                critic_loss.backward(retain_graph=True)
+                self.optimiser_critic.step()
+
+            if epochs % self.saving_interval == 0:
+                self.save() 
 
     def rollout(self):
         """
@@ -63,7 +100,7 @@ class PPO():
         while timesteps < self.batch_timesteps:
             ep_rewards = []
 
-            obs = env.reset()
+            obs = self.env.reset()
             done = False
 
             for ep_t in range(self.max_episode_timesteps):
