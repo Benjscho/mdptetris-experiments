@@ -1,8 +1,8 @@
 import argparse
-from mdptetris_experiments.agents.action_networks import NNHeuristicAction
+from mdptetris_experiments.agents.action_networks import NN1DAction, NNHeuristicAction
 
 from mdptetris_experiments.agents.FFNN import NNHeuristic, NN1D
-from gym_mdptetris.envs.tetris import Tetris
+from gym_mdptetris.envs.tetris import TetrisFlat
 from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard, MultiLinearGame
 from train import PPO
 
@@ -37,11 +37,18 @@ state_rep = {
     "1D": [NN1D, LinearGameStandard]
 }
 
-def __main__():
+def main():
     args = get_args()
 
-    env = Tetris(board_height=args.board_height, board_width=args.board_width, seed=args.seed)
-    
-    model = PPO(args, NNHeuristicAction, env)
+    env = TetrisFlat(board_height=args.board_height,
+                     board_width=args.board_width, seed=args.seed)
 
+    args = vars(args)
+    model = PPO(args, NN1DAction, env)
+    print("Model and env initialised")
     model.train(200_000_000)
+
+if __name__=='__main__':
+    main()
+
+

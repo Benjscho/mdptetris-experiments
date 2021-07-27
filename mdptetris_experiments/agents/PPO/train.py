@@ -181,7 +181,7 @@ class PPO():
         """
         pass
 
-    def _init_hyperparams(self, args: argparse.Namespace):
+    def _init_hyperparams(self, args: dict):
         # Set default hyperparams
         self.board_height = 20
         self.board_width = 10
@@ -194,24 +194,29 @@ class PPO():
         self.saving_interval = 500
         self.clip = 0.2
         self.updates_per_iter = 5
-
-        self.device = torch.device(
-            f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        self.gpu = 0
+        self.save_dir = None
+        self.log_dir = None
+        self.comment = None
+        self.seed = None
 
         for arg, val in vars(args).items():
             exec(f'self.{arg} = {val}')
 
+        self.device = torch.device(
+            f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
+
         # Setup runid, save dir, and tensorboard writer
         runid = time.strftime('%Y%m%dT%H%M%SZ')
-        save_dir = f"{args.save_dir}-{runid}"
-        writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{runid}")
+        save_dir = f"{self.save_dir}-{runid}"
+        writer = SummaryWriter(self.log_dir, comment=f"{self.comment}-{runid}")
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
         with open(f"{save_dir}/args.txt", 'w') as f:
             f.write(str(args))
 
         # Set seed 
-        if args.seed == None:
+        if self.seed == None:
             seed = int(time.time())
             random.seed(seed)
             self.env.seed(seed)
@@ -220,14 +225,16 @@ class PPO():
             else:
                 torch.manual_seed(seed)
         else:
-            random.seed(args.seed)
-            self.env.seed(args.seed)
+            random.seed(self.seed)
+            self.env.seed(self.seed)
             if torch.cuda.is_available():
-                torch.cuda.manual_seed(args.seed)
+                torch.cuda.manual_seed(self.seed)
             else:
-                torch.manual_seed(args.seed)
+                torch.manual_seed(self.seed)
 
     def _log(self):
         """
         Log info about training to TensorBoard and print to console. 
         """
+        
+        pass
