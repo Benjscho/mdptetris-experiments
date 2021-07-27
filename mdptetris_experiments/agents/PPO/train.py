@@ -39,6 +39,15 @@ class PPO():
         self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
         self.cov_matrix = torch.diag(self.cov_vars)
 
+        self.log_dict = {
+            'time_delta': time.time_ns(),
+            'timesteps': 0,
+            'epochs': 0,
+            'batch_lengths': [],
+            'episode_rewards': [],
+            'actor_losses': []
+        }
+
 
     def train(self, total_timesteps):
         """
@@ -51,6 +60,9 @@ class PPO():
             current_timesteps += np.sum(ep_len_b)
 
             epochs += 1
+
+            self.log_dict['timesteps'] = current_timesteps
+            self.log_dict['epochs'] = epochs
 
             # Calculate advantage for current iteration
             V, _ = self.evaluate(state_b, action_b)
@@ -80,8 +92,12 @@ class PPO():
                 critic_loss.backward(retain_graph=True)
                 self.optimiser_critic.step()
 
+                self.log_dict['actor_losses'].append(actor_loss.detach())
+
+            self._log()
             if epochs % self.saving_interval == 0:
                 self.save() 
+
 
     def rollout(self):
         """
@@ -123,6 +139,9 @@ class PPO():
         action_b = torch.tensor(action_b, dtype=torch.float)
         log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
         rewards_tg_b = self.rewards_to_go(rewards_b)
+
+        self.log_dict['episode_rewards'] = rewards_b
+        self.log_dict['batch_lengths'] = ep_len_b
 
         return state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b
 
@@ -212,12 +231,12 @@ class PPO():
             f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
 
         # Setup runid, save dir, and tensorboard writer
-        runid = time.strftime('%Y%m%dT%H%M%SZ')
-        save_dir = f"{self.save_dir}-{runid}"
-        writer = SummaryWriter(self.log_dir, comment=f"{self.comment}-{runid}")
-        if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
-        with open(f"{save_dir}/args.txt", 'w') as f:
+        self.runid = time.strftime('%Y%m%dT%H%M%SZ')
+        self.save_dir = f"{self.save_dir}-{self.runid}"
+        self.writer = SummaryWriter(self.log_dir, comment=f"{self.comment}-{self.runid}")
+        if not os.path.isdir(self.save_dir):
+            os.makedirs(self.save_dir)
+        with open(f"{self.save_dir}/args.txt", 'w') as f:
             f.write(str(args))
 
         # Set seed 
@@ -241,5 +260,8 @@ class PPO():
         """
         Log info about training to TensorBoard and print to console. 
         """
+        self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
+                sum(self.log_dict['episode_rewards']) *100/sum(self.log_dict['batch_lengths']), self.log_dict['timesteps'])
+
         
         pass
