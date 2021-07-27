@@ -20,7 +20,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class PPO():
-    def __init__(self, args: argparse.Namespace, policy_net, env):
+    def __init__(self, args: dict, policy_net, env):
         self.args = args
 
         self.env = env 
@@ -33,10 +33,10 @@ class PPO():
         self.actor = policy_net(self.obs_dim, self.action_dim)
         self.critic = policy_net(self.obs_dim, 1)
 
-        self.optimiser_actor = torch.optim.Adam(self.actor.parameters(), lr = args.alpha)
-        self.optimiser_critic = torch.optim.Adam(self.critic.parameters(), lr = args.alpha)
+        self.optimiser_actor = torch.optim.Adam(self.actor.parameters(), lr = self.alpha)
+        self.optimiser_critic = torch.optim.Adam(self.critic.parameters(), lr = self.alpha)
 
-        self.cov_vars = torch.full(size=(self.action_dim), fill_value=0.5)
+        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
         self.cov_matrix = torch.diag(self.cov_vars)
 
 
@@ -150,7 +150,8 @@ class PPO():
             log_prob: The log probability of the selected action
         """
         # Get mean action
-        res = self.actor(state)
+        
+        res = self.actor(torch.FloatTensor(state))
 
         # Create distribution from mean
         dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
@@ -195,13 +196,17 @@ class PPO():
         self.clip = 0.2
         self.updates_per_iter = 5
         self.gpu = 0
+        self.state_rep = None
         self.save_dir = None
         self.log_dir = None
         self.comment = None
         self.seed = None
 
-        for arg, val in vars(args).items():
-            exec(f'self.{arg} = {val}')
+        for arg, val in args.items():
+            if type(val) == str:
+                exec(f'self.{arg} = "{val}"')
+            else:
+                exec(f'self.{arg} = {val}')
 
         self.device = torch.device(
             f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
