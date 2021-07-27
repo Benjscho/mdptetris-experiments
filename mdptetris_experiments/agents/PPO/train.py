@@ -1,7 +1,7 @@
 # Logging
 # Training
-# Env Setup - multiprocess for batches 
-# Gut main, leave parsing, and logging, add in PPO training + models 
+# Env Setup - multiprocess for batches
+# Gut main, leave parsing, and logging, add in PPO training + models
 
 import argparse
 import os
@@ -18,27 +18,42 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
 
+class Log():
+    def __init__(self):
+        self.time_d = time.time_ns()
+        self.timesteps: int = 0
+        self.epochs: int = 0
+        self.batch_durations = []
+        self.episode_rewards = []
+        self.actor_losses = []
+
+    def reset_batches(self):
+        self.batch_durations = []
+        self.episode_rewards = []
+        self.actor_losses = []
+
 
 class PPO():
     def __init__(self, args: dict, policy_net, env):
-        self.args = args
 
-        self.env = env 
+        self.env = env
         self.obs_dim = env.observation_space.shape[0]
         self.action_dim = env.action_space.shape[0]
         # Initialise hyperparams
         self._init_hyperparams(args)
-        
 
         self.actor = policy_net(self.obs_dim, self.action_dim)
         self.critic = policy_net(self.obs_dim, 1)
 
-        self.optimiser_actor = torch.optim.Adam(self.actor.parameters(), lr = self.alpha)
-        self.optimiser_critic = torch.optim.Adam(self.critic.parameters(), lr = self.alpha)
+        self.optimiser_actor = torch.optim.Adam(
+            self.actor.parameters(), lr=self.alpha)
+        self.optimiser_critic = torch.optim.Adam(
+            self.critic.parameters(), lr=self.alpha)
 
         self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
         self.cov_matrix = torch.diag(self.cov_vars)
 
+        self.log = Log()
         self.log_dict = {
             'time_delta': time.time_ns(),
             'timesteps': 0,
@@ -47,7 +62,6 @@ class PPO():
             'episode_rewards': [],
             'actor_losses': []
         }
-
 
     def train(self, total_timesteps):
         """
@@ -61,6 +75,7 @@ class PPO():
 
             epochs += 1
 
+            self.log.timesteps = current_timesteps
             self.log_dict['timesteps'] = current_timesteps
             self.log_dict['epochs'] = epochs
 
@@ -96,8 +111,7 @@ class PPO():
 
             self._log()
             if epochs % self.saving_interval == 0:
-                self.save() 
-
+                self.save()
 
     def rollout(self):
         """
@@ -131,10 +145,10 @@ class PPO():
                 log_probs_b.append(log_prob)
                 if done:
                     break
-            
+
             rewards_b.append(ep_rewards)
             ep_len_b.append(ep_t + 1)
-        
+
         state_b = torch.tensor(state_b, dtype=torch.float)
         action_b = torch.tensor(action_b, dtype=torch.float)
         log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
@@ -169,7 +183,7 @@ class PPO():
             log_prob: The log probability of the selected action
         """
         # Get mean action
-        
+
         res = self.actor(torch.FloatTensor(state))
 
         # Create distribution from mean
@@ -186,7 +200,7 @@ class PPO():
 
     def evaluate(self, state_b, action_b):
         """
-        Estimate observation values. 
+        Estimate observation values and log probabilities of actions. 
         """
         V = self.critic(state_b).squeeze()
 
@@ -233,13 +247,14 @@ class PPO():
         # Setup runid, save dir, and tensorboard writer
         self.runid = time.strftime('%Y%m%dT%H%M%SZ')
         self.save_dir = f"{self.save_dir}-{self.runid}"
-        self.writer = SummaryWriter(self.log_dir, comment=f"{self.comment}-{self.runid}")
+        self.writer = SummaryWriter(
+            self.log_dir, comment=f"{self.comment}-{self.runid}")
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir)
         with open(f"{self.save_dir}/args.txt", 'w') as f:
             f.write(str(args))
 
-        # Set seed 
+        # Set seed
         if self.seed == None:
             seed = int(time.time())
             random.seed(seed)
@@ -263,25 +278,30 @@ class PPO():
         rewards_per_timestep = sum(
             [sum(i) for i in self.log_dict['episode_rewards']]) / sum(self.log_dict['batch_lengths'])
         avg_ep_length = np.mean(self.log_dict['batch_lengths'])
-        avg_ep_rewards = np.mean([np.sum(i) for i in self.log_dict['episode_rewards']])
-        avg_actor_loss = np.mean([losses.float().mean() for losses in self.log_dict['actor_losses']])
+        avg_ep_rewards = np.mean([np.sum(i)
+                                 for i in self.log_dict['episode_rewards']])
+        avg_actor_loss = np.mean([losses.float().mean()
+                                 for losses in self.log_dict['actor_losses']])
 
         print(flush=True)
-        print(f"---------------------- Iteration {self.log_dict['epochs']}-------------", flush=True)
+        print(
+            f"---------------------- Iteration {self.log_dict['epochs']} -------------", flush=True)
         print(f"Average episode length: {avg_ep_length}", flush=True)
         print(f"Average episode reward: {avg_ep_rewards}", flush=True)
         print(f"Average Loss: {avg_actor_loss}", flush=True)
         print(f"Timesteps so far: {self.log_dict['timesteps']}", flush=True)
-        print("------------------------------------------------------------------------", flush=True)
+        print("-------------------------------------------------", flush=True)
         print(flush=True)
-        
-        self.writer.add_scalar(f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log_dict['epochs'])
-        self.writer.add_scalar(f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log_dict['epochs'])
-        self.writer.add_scalar(f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log_dict['epochs'])
+
+        self.writer.add_scalar(
+            f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log_dict['epochs'])
+        self.writer.add_scalar(
+            f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log_dict['epochs'])
+        self.writer.add_scalar(
+            f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log_dict['epochs'])
         self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
-                rewards_per_timestep * 100, self.log_dict['timesteps'])
-        
+                               rewards_per_timestep * 100, self.log_dict['timesteps'])
+
         self.log_dict['batch_lengths'] = []
         self.log_dict['episode_rewards'] = []
         self.log_dict['actor_losses'] = []
-        
