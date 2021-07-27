@@ -260,8 +260,28 @@ class PPO():
         """
         Log info about training to TensorBoard and print to console. 
         """
-        self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
-                sum(self.log_dict['episode_rewards']) *100/sum(self.log_dict['batch_lengths']), self.log_dict['timesteps'])
+        rewards_per_timestep = sum(
+            [sum(i) for i in self.log_dict['episode_rewards']]) / sum(self.log_dict['batch_lengths'])
+        avg_ep_length = np.mean(self.log_dict['batch_lengths'])
+        avg_ep_rewards = np.mean([np.sum(i) for i in self.log_dict['episode_rewards']])
+        avg_actor_loss = np.mean([losses.float().mean() for losses in self.log_dict['actor_losses']])
 
+        print(flush=True)
+        print(f"---------------------- Iteration {self.log_dict['epochs']}-------------", flush=True)
+        print(f"Average episode length: {avg_ep_length}", flush=True)
+        print(f"Average episode reward: {avg_ep_rewards}", flush=True)
+        print(f"Average Loss: {avg_actor_loss}", flush=True)
+        print(f"Timesteps so far: {self.log_dict['timesteps']}", flush=True)
+        print("------------------------------------------------------------------------", flush=True)
+        print(flush=True)
         
-        pass
+        self.writer.add_scalar(f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log_dict['epochs'])
+        self.writer.add_scalar(f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log_dict['epochs'])
+        self.writer.add_scalar(f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log_dict['epochs'])
+        self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
+                rewards_per_timestep * 100, self.log_dict['timesteps'])
+        
+        self.log_dict['batch_lengths'] = []
+        self.log_dict['episode_rewards'] = []
+        self.log_dict['actor_losses'] = []
+        
