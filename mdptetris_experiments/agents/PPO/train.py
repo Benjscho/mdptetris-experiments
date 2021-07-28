@@ -121,7 +121,7 @@ class PPO():
         while timesteps < self.batch_timesteps:
             ep_rewards = []
 
-            obs = self.env.reset().to(self.device)
+            obs = self.env.reset()
             done = False
 
             for ep_t in range(self.max_episode_timesteps):
@@ -175,7 +175,7 @@ class PPO():
         """
         # Get mean action
 
-        res = self.actor(torch.FloatTensor(state))
+        res = self.actor(torch.FloatTensor(state).to(device))
 
         # Create distribution from mean
         dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
