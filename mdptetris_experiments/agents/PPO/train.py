@@ -108,7 +108,6 @@ class PPO():
         """
         Conduct a rollout 
         """
-        self.actor.to('cpu')
         state_b = []
         action_b = []
         log_probs_b = []
@@ -148,7 +147,6 @@ class PPO():
 
         self.log.episode_rewards = rewards_b
         self.log.batch_durations = ep_len_b
-        self.actor.to(self.device)
         return state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b
 
     def rewards_to_go(self, rewards_b):
@@ -176,7 +174,7 @@ class PPO():
         """
         # Get mean action
 
-        res = self.actor(torch.FloatTensor(state))
+        res = self.actor(torch.FloatTensor(state).to(self.device))
 
         # Create distribution from mean
         dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
@@ -188,7 +186,7 @@ class PPO():
         log_prob = dist.log_prob(action)
 
         # Return sampled action and its log probability
-        return action.detach().numpy(), log_prob.detach()
+        return action.detach().cpu().numpy(), log_prob.detach()
 
     def evaluate(self, state_b, action_b):
         """
