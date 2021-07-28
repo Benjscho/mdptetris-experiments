@@ -8,7 +8,12 @@ git clone https://github.com/Benjscho/mdptetris-experiments
 cd ./mdptetris-experiments && pip3 install -e .
 ```
 
-## Get correct version of torch for cuda 11.0 
+## Setup virtual env
+
+```bash
+python3 -m venv --system-site-packages ./tetris-venv
+```
+## Get correct version of torch for cuda 11.0 (on garlick)
 `pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html`
 
 
