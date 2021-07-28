@@ -42,16 +42,16 @@ class PPO():
         # Initialise hyperparams
         self._init_hyperparams(args)
 
-        self.actor = policy_net(self.obs_dim, self.action_dim).to(self.device)
-        self.critic = policy_net(self.obs_dim, 1).to(self.device)
+        self.actor = policy_net(self.obs_dim, self.action_dim)
+        self.critic = policy_net(self.obs_dim, 1)
 
         self.optimiser_actor = torch.optim.Adam(
             self.actor.parameters(), lr=self.alpha)
         self.optimiser_critic = torch.optim.Adam(
             self.critic.parameters(), lr=self.alpha)
 
-        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5).to(self.device)
-        self.cov_matrix = torch.diag(self.cov_vars).to(self.device)
+        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
+        self.cov_matrix = torch.diag(self.cov_vars)
 
         self.log = Log()
 
@@ -140,9 +140,9 @@ class PPO():
             rewards_b.append(ep_rewards)
             ep_len_b.append(ep_t + 1)
 
-        state_b = torch.tensor(state_b, dtype=torch.float).to(self.device)
-        action_b = torch.tensor(action_b, dtype=torch.float).to(self.device)
-        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float).to(self.device)
+        state_b = torch.tensor(state_b, dtype=torch.float)
+        action_b = torch.tensor(action_b, dtype=torch.float)
+        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
         rewards_tg_b = self.rewards_to_go(rewards_b)
 
         self.log.episode_rewards = rewards_b
@@ -159,7 +159,7 @@ class PPO():
                 discounted_reward = reward + discounted_reward * self.gamma
                 batch_rtg.insert(0, discounted_reward)
 
-        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float).to(self.device)
+        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float)
         return batch_rtg
 
     def get_action(self, state):
@@ -174,7 +174,7 @@ class PPO():
         """
         # Get mean action
 
-        res = self.actor(torch.FloatTensor(state).to(self.device))
+        res = self.actor(torch.FloatTensor(state))
 
         # Create distribution from mean
         dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
