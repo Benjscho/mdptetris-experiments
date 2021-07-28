@@ -187,7 +187,7 @@ class PPO():
         log_prob = dist.log_prob(action)
 
         # Return sampled action and its log probability
-        return action.detach().numpy(), log_prob.detach()
+        return action.detach().cpu().numpy(), log_prob.detach()
 
     def evaluate(self, state_b, action_b):
         """
