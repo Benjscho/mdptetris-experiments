@@ -34,6 +34,7 @@ def get_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+
 def main():
     args = get_args()
 
@@ -45,7 +46,6 @@ def main():
     print("Model and env initialised")
     model.train(200_000_000)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()
-
-

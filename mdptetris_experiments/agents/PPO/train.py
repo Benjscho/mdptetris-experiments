@@ -16,11 +16,21 @@ class Log():
         self.batch_durations: list[int] = []
         self.episode_rewards: list[list[int]] = []
         self.actor_losses: list[torch.Tensor] = []
+        self.avg_ep_rewards = []
+        self.avg_ep_durations = []
+        self.avg_actor_losses = []
+        self.epoch_timesteps = []
 
     def reset_batches(self):
         self.batch_durations: list[int] = []
         self.episode_rewards: list[list[int]] = []
         self.actor_losses: list[torch.Tensor] = []
+
+    def save(self, save_dir):
+        np.array(self.avg_ep_rewards).tofile(f"{save_dir}/avg_ep_rewards.csv", sep=',')
+        np.array(self.avg_ep_durations).tofile(f"{save_dir}/avg_ep_durations.csv", sep=',')
+        np.array(self.avg_actor_losses).tofile(f"{save_dir}/avg_actor_losses.csv", sep=',')
+        np.array(self.epoch_timesteps).tofile(f"{save_dir}/epoch_timesteps.csv", sep=',')
 
 
 class PPO():
@@ -32,8 +42,8 @@ class PPO():
         # Initialise hyperparams
         self._init_hyperparams(args)
 
-        self.actor = policy_net(self.obs_dim, self.action_dim)
-        self.critic = policy_net(self.obs_dim, 1)
+        self.actor = policy_net(self.obs_dim, self.action_dim).to(self.device)
+        self.critic = policy_net(self.obs_dim, 1).to(self.device)
 
         self.optimiser_actor = torch.optim.Adam(
             self.actor.parameters(), lr=self.alpha)
@@ -111,7 +121,7 @@ class PPO():
         while timesteps < self.batch_timesteps:
             ep_rewards = []
 
-            obs = self.env.reset()
+            obs = self.env.reset().to(self.device)
             done = False
 
             for ep_t in range(self.max_episode_timesteps):
@@ -130,9 +140,9 @@ class PPO():
             rewards_b.append(ep_rewards)
             ep_len_b.append(ep_t + 1)
 
-        state_b = torch.tensor(state_b, dtype=torch.float)
-        action_b = torch.tensor(action_b, dtype=torch.float)
-        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
+        state_b = torch.tensor(state_b, dtype=torch.float).to(self.device)
+        action_b = torch.tensor(action_b, dtype=torch.float).to(self.device)
+        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float).to(self.device)
         rewards_tg_b = self.rewards_to_go(rewards_b)
 
         self.log.episode_rewards = rewards_b
@@ -150,7 +160,7 @@ class PPO():
                 discounted_reward = reward + discounted_reward * self.gamma
                 batch_rtg.insert(0, discounted_reward)
 
-        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float)
+        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float).to(self.device)
         return batch_rtg
 
     def get_action(self, state):
@@ -194,7 +204,9 @@ class PPO():
         """
         Save current agent state and associated run log details. 
         """
-        pass
+        torch.save(self.actor, f"{self.save_dir}/actor")
+        torch.save(self.critic, f"{self.save_dir}/critic")
+        self.log.save(self.save_dir)
 
     def _init_hyperparams(self, args: dict):
         # Set default hyperparams
@@ -263,6 +275,11 @@ class PPO():
         avg_actor_loss = np.mean([losses.float().mean()
                                  for losses in self.log.actor_losses])
 
+        self.log.avg_ep_rewards.append(avg_ep_rewards)
+        self.log.avg_ep_durations.append(avg_ep_length)
+        self.log.avg_actor_losses.append(avg_actor_loss)
+        self.log.epoch_timesteps.append(self.log.timesteps)
+        
         print(flush=True)
         print(
             f"---------------------- Iteration {self.log.epochs} -------------", flush=True)
