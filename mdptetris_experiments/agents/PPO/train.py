@@ -175,7 +175,7 @@ class PPO():
         """
         # Get mean action
 
-        res = self.actor(torch.FloatTensor(state).to(device))
+        res = self.actor(torch.FloatTensor(state).to(self.device))
 
         # Create distribution from mean
         dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
