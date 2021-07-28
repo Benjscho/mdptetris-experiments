@@ -50,8 +50,8 @@ class PPO():
         self.optimiser_critic = torch.optim.Adam(
             self.critic.parameters(), lr=self.alpha)
 
-        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
-        self.cov_matrix = torch.diag(self.cov_vars)
+        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5).to(self.device)
+        self.cov_matrix = torch.diag(self.cov_vars).to(self.device)
 
         self.log = Log()
 
