@@ -1,19 +1,9 @@
-# Logging
-# Training
-# Env Setup - multiprocess for batches
-# Gut main, leave parsing, and logging, add in PPO training + models
-
-import argparse
 import os
 import random
 import time
-from collections import deque
 
 import numpy as np
 import torch
-from gym_mdptetris.envs import board, piece, tetris
-from mdptetris_experiments.agents.FFNN import NNHeuristic, NN1D
-from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard, MultiLinearGame
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,6 +21,7 @@ class Log():
         self.batch_durations: list[int] = []
         self.episode_rewards: list[list[int]] = []
         self.actor_losses: list[torch.Tensor] = []
+
 
 class PPO():
     def __init__(self, args: dict, policy_net, env):

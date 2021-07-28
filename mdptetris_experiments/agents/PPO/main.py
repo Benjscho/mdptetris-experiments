@@ -1,10 +1,10 @@
 import argparse
-from mdptetris_experiments.agents.action_networks import NN1DAction, NNHeuristicAction
 
-from mdptetris_experiments.agents.FFNN import NNHeuristic, NN1D
 from gym_mdptetris.envs.tetris import TetrisFlat
-from mdptetris_experiments.agents.linear_agent import LinearGame, LinearGameStandard, MultiLinearGame
+from mdptetris_experiments.agents.action_networks import NN1DAction
+
 from train import PPO
+
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
