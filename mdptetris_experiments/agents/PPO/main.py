@@ -13,11 +13,13 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--batch_timesteps", type=int, default=4500)
+    parser.add_argument("--batch_timesteps", type=int, default=10000)
     parser.add_argument("--max_episode_timesteps", type=int, default=2000)
     parser.add_argument("--nb_games", type=int, default=20)
+    parser.add_argument("--updates_per_iter", type=int, default=5)
     parser.add_argument("--alpha", type=float, default=1e-3)
     parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--clip", type=float, default=0.2)
     parser.add_argument("--saving_interval", type=int, default=500)
     parser.add_argument("--state_rep", type=str, default="heuristic")
     parser.add_argument("--log_dir", type=str, default="runs")
@@ -31,11 +33,6 @@ def get_args() -> argparse.Namespace:
 
     args = parser.parse_args()
     return args
-
-state_rep = {
-    "heuristic": [NNHeuristic, MultiLinearGame],
-    "1D": [NN1D, LinearGameStandard]
-}
 
 def main():
     args = get_args()

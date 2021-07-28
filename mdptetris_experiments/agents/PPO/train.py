@@ -23,15 +23,14 @@ class Log():
         self.time_d = time.time_ns()
         self.timesteps: int = 0
         self.epochs: int = 0
-        self.batch_durations = []
-        self.episode_rewards = []
-        self.actor_losses = []
+        self.batch_durations: list[int] = []
+        self.episode_rewards: list[list[int]] = []
+        self.actor_losses: list[torch.Tensor] = []
 
     def reset_batches(self):
-        self.batch_durations = []
-        self.episode_rewards = []
-        self.actor_losses = []
-
+        self.batch_durations: list[int] = []
+        self.episode_rewards: list[list[int]] = []
+        self.actor_losses: list[torch.Tensor] = []
 
 class PPO():
     def __init__(self, args: dict, policy_net, env):
@@ -54,14 +53,6 @@ class PPO():
         self.cov_matrix = torch.diag(self.cov_vars)
 
         self.log = Log()
-        self.log_dict = {
-            'time_delta': time.time_ns(),
-            'timesteps': 0,
-            'epochs': 0,
-            'batch_lengths': [],
-            'episode_rewards': [],
-            'actor_losses': []
-        }
 
     def train(self, total_timesteps):
         """
@@ -76,8 +67,7 @@ class PPO():
             epochs += 1
 
             self.log.timesteps = current_timesteps
-            self.log_dict['timesteps'] = current_timesteps
-            self.log_dict['epochs'] = epochs
+            self.log.epochs = epochs
 
             # Calculate advantage for current iteration
             V, _ = self.evaluate(state_b, action_b)
@@ -107,7 +97,7 @@ class PPO():
                 critic_loss.backward(retain_graph=True)
                 self.optimiser_critic.step()
 
-                self.log_dict['actor_losses'].append(actor_loss.detach())
+                self.log.actor_losses.append(actor_loss.detach())
 
             self._log()
             if epochs % self.saving_interval == 0:
@@ -121,7 +111,7 @@ class PPO():
         action_b = []
         log_probs_b = []
         rewards_b = []
-        ep_len_b = []
+        ep_len_b: list[int] = []
 
         # Track rewards per episode
         ep_rewards = []
@@ -154,8 +144,8 @@ class PPO():
         log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
         rewards_tg_b = self.rewards_to_go(rewards_b)
 
-        self.log_dict['episode_rewards'] = rewards_b
-        self.log_dict['batch_lengths'] = ep_len_b
+        self.log.episode_rewards = rewards_b
+        self.log.batch_durations = ep_len_b
 
         return state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b
 
@@ -229,7 +219,6 @@ class PPO():
         self.clip = 0.2
         self.updates_per_iter = 5
         self.gpu = 0
-        self.state_rep = None
         self.save_dir = None
         self.log_dir = None
         self.comment = None
@@ -276,32 +265,30 @@ class PPO():
         Log info about training to TensorBoard and print to console. 
         """
         rewards_per_timestep = sum(
-            [sum(i) for i in self.log_dict['episode_rewards']]) / sum(self.log_dict['batch_lengths'])
-        avg_ep_length = np.mean(self.log_dict['batch_lengths'])
+            [sum(i) for i in self.log.episode_rewards]) / sum(self.log.batch_durations)
+        avg_ep_length = np.mean(self.log.batch_durations)
         avg_ep_rewards = np.mean([np.sum(i)
-                                 for i in self.log_dict['episode_rewards']])
+                                 for i in self.log.episode_rewards])
         avg_actor_loss = np.mean([losses.float().mean()
-                                 for losses in self.log_dict['actor_losses']])
+                                 for losses in self.log.actor_losses])
 
         print(flush=True)
         print(
-            f"---------------------- Iteration {self.log_dict['epochs']} -------------", flush=True)
+            f"---------------------- Iteration {self.log.epochs} -------------", flush=True)
         print(f"Average episode length: {avg_ep_length}", flush=True)
         print(f"Average episode reward: {avg_ep_rewards}", flush=True)
         print(f"Average Loss: {avg_actor_loss}", flush=True)
-        print(f"Timesteps so far: {self.log_dict['timesteps']}", flush=True)
+        print(f"Timesteps so far: {self.log.timesteps}", flush=True)
         print("-------------------------------------------------", flush=True)
         print(flush=True)
 
         self.writer.add_scalar(
-            f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log_dict['epochs'])
+            f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log.epochs)
         self.writer.add_scalar(
-            f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log_dict['epochs'])
+            f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log.epochs)
         self.writer.add_scalar(
-            f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log_dict['epochs'])
+            f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log.epochs)
         self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
-                               rewards_per_timestep * 100, self.log_dict['timesteps'])
+                               rewards_per_timestep * 100, self.log.timesteps)
 
-        self.log_dict['batch_lengths'] = []
-        self.log_dict['episode_rewards'] = []
-        self.log_dict['actor_losses'] = []
+        self.log.reset_batches()
