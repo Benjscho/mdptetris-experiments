@@ -271,7 +271,7 @@ class PPO():
         avg_ep_length = np.mean(self.log.batch_durations)
         avg_ep_rewards = np.mean([np.sum(i)
                                  for i in self.log.episode_rewards])
-        avg_actor_loss = np.mean([losses.float().mean()
+        avg_actor_loss = np.mean([losses.cpu().float().mean()
                                  for losses in self.log.actor_losses])
 
         self.log.avg_ep_rewards.append(avg_ep_rewards)
