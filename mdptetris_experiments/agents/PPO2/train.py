@@ -104,8 +104,8 @@ class PPO():
         self.model = PPONN(self.envs.observation_space, self.envs.action_space).to(self.device)
         self.model.share_memory()
 
-        self.cov_vars = torch.full(size=(self.envs.action_space,), fill_value=0.5)
-        self.cov_matrix = torch.diag(self.cov_vars)
+        self.cov_vars = torch.full(size=(self.envs.action_space,), fill_value=0.5).to(self.device)
+        self.cov_matrix = torch.diag(self.cov_vars).to(self.device)
 
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
         
