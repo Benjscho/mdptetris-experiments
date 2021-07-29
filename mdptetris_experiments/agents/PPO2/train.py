@@ -4,7 +4,6 @@ import time
 import argparse
 import numpy as np
 import torch
-from torch._C import T
 import torch.multiprocessing as multiprocessing
 from mdptetris_experiments.agents.action_networks import PPONN
 from torch import nn
@@ -18,10 +17,10 @@ def get_args() -> argparse.Namespace:
                         help="The GPU to train the agent on")
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--batch_timesteps", type=int, default=10000)
     parser.add_argument("--max_episode_timesteps", type=int, default=2000)
-    parser.add_argument("--nb_games", type=int, default=20)
+    parser.add_argument("--nb_games", type=int, default=8)
     parser.add_argument("--updates_per_iter", type=int, default=5)
     parser.add_argument("--alpha", type=float, default=1e-3)
     parser.add_argument("--gamma", type=float, default=0.99)
@@ -48,8 +47,8 @@ class MultiEnv:
         for _ in range(nb_envs):
             self.envs.append(TetrisFlat(board_height=board_height,
                      board_width=board_width, seed=seed))
-        self.observation_space = self.envs[0].observation_space
-        self.action_space = self.envs[0].action_space
+        self.observation_space = self.envs[0].observation_space.shape[0]
+        self.action_space = self.envs[0].action_space.shape[0]
         for i in range(nb_envs):
             process = multiprocessing.Process(target=self.run_env, args=(i,))
             process.start()
@@ -65,6 +64,7 @@ class MultiEnv:
                 self.env_con[index].send(self.envs[index].reset())
             else:
                 raise NotImplementedError
+
 
 class Log():
     def __init__(self):
@@ -92,163 +92,103 @@ class Log():
 
 
 class PPO():
-    def __init__(self, args: dict, policy_net, envs):
+    def __init__(self, args: dict):
 
-        mp = multiprocessing.get_context("spawn")
+        self.mp = multiprocessing.get_context("spawn")
         # Initialise hyperparams
         self._init_hyperparams(args)
 
         self.envs = MultiEnv(board_height=self.board_height,
                     board_width=self.board_width, seed=self.seed, nb_envs=self.nb_games)
-        self.model = PPONN(envs.observation_space, envs.action_space).to(self.device)
+        print("Agents created")
+        self.model = PPONN(self.envs.observation_space, self.envs.action_space).to(self.device)
+        self.model.share_memory()
 
-        self.obs_dim = envs.observation_space.shape[0]
-        self.action_dim = envs.action_space.shape[0]
-
-        process = 
 
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
-        [connection.send(("reset", None)) for connection in envs.agent_con]
         
-
+        # Initialise log
         self.log = Log()
 
-    def train(self, total_timesteps):
+    def train(self):
         """
         Train the agent networks for a number of timesteps. 
         """
-        current_timesteps = 0
-        epochs = 0
-        while current_timesteps < total_timesteps:
-            state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b = self.rollout()
-            current_timesteps += np.sum(ep_len_b)
+        print("training")
+        [connection.send(("reset", None)) for connection in self.envs.agent_con]
+        obs = [connection.recv() for connection in self.envs.agent_con]
+        obs = torch.from_numpy(np.concatenate(obs, 0)).to(self.device)
 
-            epochs += 1
+        epoch = 0
+        while True:
+            epoch += 1
+            old_log_pols = []
+            actions = []
+            values = []
+            states = []
+            rewards = []
+            dones = []
+            for _ in range(self.max_episode_timesteps):
+                states.append(obs)
+                probs, value = self.model(obs)
+                values.append(value.squeeze())
+                distr = functional.softmax(probs, dim=1)
+                old_m = torch.distributions.Categorical(distr)
+                action = old_m.sample()
+                actions.append(action)
+                old_log_policy = old_m.log_prob(action)
+                old_log_pols.append(old_log_policy)
+                for conn, action in zip(self.envs.agent_con, action.cpu()):
+                    conn.send(("step", action))
+                
+                obs, reward, done, info = zip(*[connection.recv() for connection in self.envs.agent_con])
+                obs = torch.from_numpy(np.concatenate(obs, 0)).to(self.device)
+                reward = torch.FloatTensor(reward).to(self.device)
+                done = torch.FloatTensor(done).to(self.device)
+                rewards.append(reward)
+                dones.append(done)
+            
+            _, new_value = self.model(obs)
+            new_value = new_value.squeeze()
+            old_log_pols = torch.cat(old_log_pols).detach()
+            actions = torch.cat(actions)
+            values = torch.cat(values).detach()
+            states = torch.cat(states)
 
-            self.log.timesteps = current_timesteps
-            self.log.epochs = epochs
-
-            # Calculate advantage for current iteration
-            V, _ = self.evaluate(state_b, action_b)
-            A_k = rewards_tg_b - V.detach()
-
-            # Normalise advantages to decrease variance and improve convergence
-            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
-
-            for _ in range(self.updates_per_iter):
-                V, curr_log_probs = self.evaluate(state_b, action_b)
-
-                # Calculate ratio
-                ratios = torch.exp(curr_log_probs - log_probs_b)
-
-                # Surrogate losses
-                surr1 = ratios * A_k
-                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
-
-                actor_loss = (-torch.min(surr1, surr2)).mean()
-                critic_loss = nn.MSELoss()(V, rewards_tg_b)
-
-                self.optimiser_actor.zero_grad()
-                actor_loss.backward(retain_graph=True)
-                self.optimiser_actor.step()
-
-                self.optimiser_critic.zero_grad()
-                critic_loss.backward(retain_graph=True)
-                self.optimiser_critic.step()
-
-                self.log.actor_losses.append(actor_loss.detach())
-
-            self._log()
-            if epochs % self.saving_interval == 0:
-                self.save()
-
-    def rollout(self):
-        """
-        Conduct a rollout 
-        """
-        state_b = []
-        action_b = []
-        log_probs_b = []
-        rewards_b = []
-        ep_len_b: list[int] = []
-
-        # Track rewards per episode
-        ep_rewards = []
-
-        timesteps = 0
-        while timesteps < self.batch_timesteps:
-            ep_rewards = []
-
-            obs = self.env.reset()
-            done = False
-
-            for ep_t in range(self.max_episode_timesteps):
-                timesteps += 1
-                state_b.append(obs)
-
-                action, log_prob = self.get_action(obs)
-                obs, rew, done, _ = self.env.step(action)
-
-                ep_rewards.append(rew)
-                action_b.append(action)
-                log_probs_b.append(log_prob)
-                if done:
-                    break
-
-            rewards_b.append(ep_rewards)
-            ep_len_b.append(ep_t + 1)
-
-        state_b = torch.tensor(state_b, dtype=torch.float)
-        action_b = torch.tensor(action_b, dtype=torch.float)
-        log_probs_b = torch.tensor(log_probs_b, dtype=torch.float)
-        rewards_tg_b = self.rewards_to_go(rewards_b)
-
-        self.log.episode_rewards = rewards_b
-        self.log.batch_durations = ep_len_b
-        return state_b, action_b, log_probs_b, rewards_tg_b, ep_len_b
-
-    def rewards_to_go(self, rewards_b):
-
-        batch_rtg = []
-
-        for ep_reward in reversed(rewards_b):
-            discounted_reward = 0
-            for reward in reversed(ep_reward):
-                discounted_reward = reward + discounted_reward * self.gamma
-                batch_rtg.insert(0, discounted_reward)
-
-        batch_rtg = torch.tensor(batch_rtg, dtype=torch.float)
-        return batch_rtg
-
-    def get_action(self, state):
-        """
-        Query the actor network to get the action.
-
-        :param state: observation at the current timestep
-
-        return:
-            action: The action to take
-            log_prob: The log probability of the selected action
-        """
-        # Get mean action
-
-        res = self.actor(torch.FloatTensor(state))
-
-        # Create distribution from mean
-        dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
-
-        # Sample action from distribution
-        action = dist.sample()
-
-        # Calculate action log probability
-        log_prob = dist.log_prob(action)
-
-        # Return sampled action and its log probability
-        return action.detach().cpu().numpy(), log_prob.detach()
+            gae = 0
+            R = []
+            for value, reward, done in list(zip(values, rewards, dones))[::-1]:
+                gae = gae * self.gamma 
+                gae = gae + reward + (0 if done else self.gamma * new_value.detach()) - value.detach()
+                new_value = value
+                R.append(gae + value)
+            R = R[::-1]
+            R = torch.cat(R).detach()
+            advantages = R - values
+            for i in range(self.updates_per_iter):
+                ind = torch.randperm(self.max_episode_timesteps * self.nb_games)
+                for j in range(self.batch_size):
+                    batch_indices = ind[int(j * (self.max_episode_timesteps * self.nb_games / self.batch_size)): int(
+                        (j+1)*(self.max_episode_timesteps * self.nb_games / self.batch_size))]
+                    distr, value = self.model(states[batch_indices])
+                    new_pol = functional.softmax(distr, dim=1)
+                    new_m = torch.distributions.Categorical(distr)
+                    new_log_policy = new_m.log_prob(actions[batch_indices])
+                    ratio = torch.exp(new_log_policy - old_log_pols[batch_indices])
+                    actor_loss = -torch.mean(torch.min(ratio*advantages[batch_indices], torch.clamp(
+                        ratio, 1.0 - self.clip, 1.0 + self.clip) * advantages[batch_indices]))
+                    critic_loss = functional.smooth_l1_loss(R[batch_indices], value.squeeze())
+                    entropy_loss = torch.mean(new_m.entropy())
+                    total_loss = actor_loss + critic_loss - self.beta * entropy_loss
+                    self.optimiser.zero_grad()
+                    total_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
+                    self.optimiser.step()
+            print(f"Epoch: {epoch}, Total loss: {total_loss}")
 
     def evaluate(self):
         """
-        Estimate observation values and log probabilities of actions. 
+        Evaluate current model and watch progress while model trains. 
         """
         env = TetrisFlat(board_height=self.board_height,
                      board_width=self.board_width, seed=self.seed)
@@ -275,26 +215,25 @@ class PPO():
                 timestep = 0
                 obs = env.reset()
 
-
     def save(self):
         """
         Save current agent state and associated run log details. 
         """
-        torch.save(self.actor, f"{self.save_dir}/actor")
-        torch.save(self.critic, f"{self.save_dir}/critic")
+        torch.save(self.model, f"{self.save_dir}/model")
         self.log.save(self.save_dir)
 
     def _init_hyperparams(self, args: dict):
         # Set default hyperparams
         self.board_height = 20
         self.board_width = 10
-        self.batch_size = 512
+        self.batch_size = 16
         self.batch_timesteps = 10000
-        self.max_episode_timesteps = 2000
+        self.max_episode_timesteps = 512
         self.total_training_steps = 2e7
-        self.nb_games = 20
+        self.nb_games = 8
         self.alpha = 1e-3
         self.gamma = 0.99
+        self.beta = 0.01
         self.saving_interval = 50
         self.clip = 0.2
         self.updates_per_iter = 5
@@ -327,18 +266,17 @@ class PPO():
         if self.seed == None:
             seed = int(time.time())
             random.seed(seed)
-            self.env.seed(seed)
             if torch.cuda.is_available():
                 torch.cuda.manual_seed(seed)
             else:
                 torch.manual_seed(seed)
         else:
             random.seed(self.seed)
-            self.env.seed(self.seed)
             if torch.cuda.is_available():
                 torch.cuda.manual_seed(self.seed)
             else:
                 torch.manual_seed(self.seed)
+        
 
     def _log(self):
         """
@@ -377,3 +315,9 @@ class PPO():
                                rewards_per_timestep * 100, self.log.timesteps)
 
         self.log.reset_batches()
+
+if __name__=="__main__":
+    args = vars(get_args())
+
+    agent = PPO(args)
+    agent.train()
