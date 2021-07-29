@@ -160,10 +160,10 @@ class PPO():
                 done = torch.FloatTensor(done).to(self.device)
                 rewards.append(reward)
                 dones.append(done)
-                if torch.any(done): 
-                    [connection.send(("reset", None)) for connection in self.envs.agent_con]
-                    obs = [connection.recv() for connection in self.envs.agent_con]
-                    obs = torch.FloatTensor(obs).to(self.device)
+                for i in range(done):
+                    if done[i]:
+                       self.envs.agent_con[i].send(("reset", None)) 
+                       obs[i] = self.envs.agent_con[i].recv()
             
             _, new_value = self.model(obs)
             new_value = new_value.squeeze()
@@ -176,7 +176,7 @@ class PPO():
             R = []
             for value, reward, done in list(zip(values, rewards, dones))[::-1]:
                 gae = gae * self.gamma 
-                gae = gae + reward + (0 if done else self.gamma * new_value.detach()) - value.detach()
+                gae = gae + reward + (self.gamma * new_value.detach() * (1 - done)) - value.detach()
                 new_value = value
                 R.append(gae + value)
             R = R[::-1]
@@ -189,7 +189,7 @@ class PPO():
                     batch_indices = ind[int(j * (self.max_episode_timesteps * self.nb_games / self.batch_size)): int(
                         (j+1)*(self.max_episode_timesteps * self.nb_games / self.batch_size))]
                     policy, value = self.model(states[batch_indices])
-                    new_pol = functional.softmax(policy)
+                    new_pol = functional.softmax(policy, dim=1)
 
                     dist = torch.distributions.MultivariateNormal(new_pol, self.cov_matrix)
 
@@ -206,8 +206,13 @@ class PPO():
                     total_loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                     self.optimiser.step()
+            avg_rewards = torch.mean(torch.cat(rewards))
             print(f"Epoch: {epoch}, Total loss: {total_loss}")
-            print(f"Timesteps: {timesteps} Average rewards: {np.mean(rewards)}")
+            print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
+            self.writer.add_scalar(
+                f'PPO-{self.runid}/Average episode reward', avg_rewards, timesteps)
+            self.writer.add_scalar(
+                f'PPO-{self.runid}/Total loss', total_loss, epoch)
 
     def evaluate(self):
         """
