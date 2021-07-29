@@ -160,7 +160,7 @@ class PPO():
                 done = torch.FloatTensor(done).to(self.device)
                 rewards.append(reward)
                 dones.append(done)
-                for i in range(done):
+                for i in range(self.nb_games):
                     if done[i]:
                        self.envs.agent_con[i].send(("reset", None)) 
                        obs[i] = self.envs.agent_con[i].recv()
