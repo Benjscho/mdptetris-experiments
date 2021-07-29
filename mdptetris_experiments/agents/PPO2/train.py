@@ -117,7 +117,7 @@ class PPO():
         print("training")
         [connection.send(("reset", None)) for connection in self.envs.agent_con]
         obs = [connection.recv() for connection in self.envs.agent_con]
-        obs = torch.from_numpy(np.concatenate(obs, 0)).to(self.device)
+        obs = torch.FloatTensor(np.concatenate(obs, 0)).to(self.device)
 
         epoch = 0
         while True:
@@ -142,7 +142,7 @@ class PPO():
                     conn.send(("step", action))
                 
                 obs, reward, done, info = zip(*[connection.recv() for connection in self.envs.agent_con])
-                obs = torch.from_numpy(np.concatenate(obs, 0)).to(self.device)
+                obs = torch.FloatTensor(np.concatenate(obs, 0)).to(self.device)
                 reward = torch.FloatTensor(reward).to(self.device)
                 done = torch.FloatTensor(done).to(self.device)
                 rewards.append(reward)
@@ -203,7 +203,7 @@ class PPO():
             if done:
                 model.load_state_dict(self.model.state_dict())
             
-            obs = torch.from_numpy(obs).to(self.device)
+            obs = torch.FloatTensor(obs).to(self.device)
             probs, value = model(obs)
             distr = functional.softmax(probs, dim=1)
             action = torch.argmax(distr).item()
