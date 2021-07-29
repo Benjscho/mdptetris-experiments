@@ -132,7 +132,7 @@ class PPO():
                 states.append(obs)
                 probs, value = self.model(obs)
                 values.append(value.squeeze())
-                distr = functional.softmax(probs, dim=1)
+                distr = functional.softmax(probs)
                 old_m = torch.distributions.Categorical(distr)
                 action = old_m.sample()
                 actions.append(action)
@@ -171,7 +171,7 @@ class PPO():
                     batch_indices = ind[int(j * (self.max_episode_timesteps * self.nb_games / self.batch_size)): int(
                         (j+1)*(self.max_episode_timesteps * self.nb_games / self.batch_size))]
                     distr, value = self.model(states[batch_indices])
-                    new_pol = functional.softmax(distr, dim=1)
+                    new_pol = functional.softmax(distr)
                     new_m = torch.distributions.Categorical(distr)
                     new_log_policy = new_m.log_prob(actions[batch_indices])
                     ratio = torch.exp(new_log_policy - old_log_pols[batch_indices])
@@ -205,7 +205,7 @@ class PPO():
             
             obs = torch.FloatTensor(obs).to(self.device)
             probs, value = model(obs)
-            distr = functional.softmax(probs, dim=1)
+            distr = functional.softmax(probs)
             action = torch.argmax(distr).item()
             obs, reward, done, info = env.step(action)
 
