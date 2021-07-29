@@ -59,7 +59,7 @@ class MultiEnv:
         while True:
             request, action = self.env_con[index].recv()
             if request == 'step':
-                self.env_con[index].send(self.envs[index].step(action.item()))
+                self.env_con[index].send(self.envs[index].step(action))
             elif request == 'reset':
                 self.env_con[index].send(self.envs[index].reset())
             else:
@@ -150,12 +150,11 @@ class PPO():
                 #old_log_policy = old_m.log_prob(action)
                 old_log_pols.append(old_log_policy)
                 print(action)
-                print(self.envs.agent_con)
-                for conn, action in zip(self.envs.agent_con, action.cpu()):
+                for conn, action in zip(self.envs.agent_con, action.cpu().numpy()):
                     conn.send(("step", action))
                 
                 obs, reward, done, info = zip(*[connection.recv() for connection in self.envs.agent_con])
-                obs = torch.FloatTensor(np.concatenate(obs, 0)).to(self.device)
+                obs = torch.FloatTensor(obs).to(self.device)
                 reward = torch.FloatTensor(reward).to(self.device)
                 done = torch.FloatTensor(done).to(self.device)
                 rewards.append(reward)
