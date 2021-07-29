@@ -4,9 +4,11 @@ import time
 import argparse
 import numpy as np
 import torch
+from torch._C import T
 import torch.multiprocessing as multiprocessing
 from mdptetris_experiments.agents.action_networks import PPONN
 from torch import nn
+import torch.nn.functional as functional
 from torch.utils.tensorboard import SummaryWriter
 from gym_mdptetris.envs.tetris import TetrisFlat
 
@@ -103,12 +105,11 @@ class PPO():
         self.obs_dim = envs.observation_space.shape[0]
         self.action_dim = envs.action_space.shape[0]
 
+        process = 
+
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
         [connection.send(("reset", None)) for connection in envs.agent_con]
         
-
-        self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
-        self.cov_matrix = torch.diag(self.cov_vars)
 
         self.log = Log()
 
@@ -245,16 +246,35 @@ class PPO():
         # Return sampled action and its log probability
         return action.detach().cpu().numpy(), log_prob.detach()
 
-    def evaluate(self, state_b, action_b):
+    def evaluate(self):
         """
         Estimate observation values and log probabilities of actions. 
         """
-        V = self.critic(state_b).squeeze()
+        env = TetrisFlat(board_height=self.board_height,
+                     board_width=self.board_width, seed=self.seed)
+        
+        model = PPONN(env.observation_space.shape[0], env.action_space.shape[0]).to(self.device)
+        model.eval()
+        obs = env.reset()
+        timestep = 0
+        done = True
+        while True:
+            timestep += 1
+            if done:
+                model.load_state_dict(self.model.state_dict())
+            
+            obs = torch.from_numpy(obs).to(self.device)
+            probs, value = model(obs)
+            distr = functional.softmax(probs, dim=1)
+            action = torch.argmax(distr).item()
+            obs, reward, done, info = env.step(action)
 
-        res = self.actor(state_b)
-        dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
-        log_probs = dist.log_prob(action_b)
-        return V, log_probs
+            if timestep > self.total_training_steps:
+                done = True
+            if done:
+                timestep = 0
+                obs = env.reset()
+
 
     def save(self):
         """
@@ -271,6 +291,7 @@ class PPO():
         self.batch_size = 512
         self.batch_timesteps = 10000
         self.max_episode_timesteps = 2000
+        self.total_training_steps = 2e7
         self.nb_games = 20
         self.alpha = 1e-3
         self.gamma = 0.99
