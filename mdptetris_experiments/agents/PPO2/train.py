@@ -142,14 +142,13 @@ class PPO():
                 # Calculate action log probability
                 old_log_policy = dist.log_prob(action)
 
-                values.append(value.squeeze())
+                values.append(value)
                 #policy = functional.softmax(logits, dim=1)
                 #old_m = torch.distributions.Categorical(policy)
                 #action = old_m.sample()
                 actions.append(action)
                 #old_log_policy = old_m.log_prob(action)
                 old_log_pols.append(old_log_policy)
-                print(action)
                 for conn, action in zip(self.envs.agent_con, action.cpu().numpy()):
                     conn.send(("step", action))
                 
@@ -159,6 +158,10 @@ class PPO():
                 done = torch.FloatTensor(done).to(self.device)
                 rewards.append(reward)
                 dones.append(done)
+                if torch.any(done): 
+                    [connection.send(("reset", None)) for connection in self.envs.agent_con]
+                    obs = [connection.recv() for connection in self.envs.agent_con]
+                    obs = torch.FloatTensor(obs).to(self.device)
             
             _, new_value = self.model(obs)
             new_value = new_value.squeeze()
@@ -177,6 +180,7 @@ class PPO():
             R = R[::-1]
             R = torch.cat(R).detach()
             advantages = R - values
+            print("update iters")
             for i in range(self.updates_per_iter):
                 ind = torch.randperm(self.max_episode_timesteps * self.nb_games)
                 for j in range(self.batch_size):
@@ -184,13 +188,20 @@ class PPO():
                         (j+1)*(self.max_episode_timesteps * self.nb_games / self.batch_size))]
                     policy, value = self.model(states[batch_indices])
                     new_pol = functional.softmax(policy)
-                    new_m = torch.distributions.Categorical(policy)
-                    new_log_policy = new_m.log_prob(actions[batch_indices])
+
+                    dist = torch.distributions.MultivariateNormal(policy, self.cov_matrix)
+
+                    # Calculate action log probability
+                    new_log_policy = dist.log_prob(actions[batch_indices])
+
+                    # where it went wrong 
+                    #new_m = torch.distributions.Categorical(policy)
+                    #new_log_policy = new_m.log_prob(actions[batch_indices])
                     ratio = torch.exp(new_log_policy - old_log_pols[batch_indices])
                     actor_loss = -torch.mean(torch.min(ratio*advantages[batch_indices], torch.clamp(
                         ratio, 1.0 - self.clip, 1.0 + self.clip) * advantages[batch_indices]))
                     critic_loss = functional.smooth_l1_loss(R[batch_indices], value.squeeze())
-                    entropy_loss = torch.mean(new_m.entropy())
+                    entropy_loss = torch.mean(dist.entropy())
                     total_loss = actor_loss + critic_loss - self.beta * entropy_loss
                     self.optimiser.zero_grad()
                     total_loss.backward()
