@@ -163,7 +163,7 @@ class PPO():
                 for i in range(self.nb_games):
                     if done[i]:
                        self.envs.agent_con[i].send(("reset", None)) 
-                       obs[i] = self.envs.agent_con[i].recv()
+                       obs[i] = torch.FloatTensor(self.envs.agent_con[i].recv())
             
             _, new_value = self.model(obs)
             new_value = new_value.squeeze()
