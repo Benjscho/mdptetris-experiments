@@ -1,12 +1,68 @@
 import os
 import random
 import time
-
+import argparse
 import numpy as np
 import torch
+import torch.multiprocessing as multiprocessing
+from mdptetris_experiments.agents.action_networks import PPONN
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
+from gym_mdptetris.envs.tetris import TetrisFlat
 
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gpu", type=str, default='0',
+                        help="The GPU to train the agent on")
+    parser.add_argument("--board_height", type=int, default=20)
+    parser.add_argument("--board_width", type=int, default=10)
+    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_timesteps", type=int, default=10000)
+    parser.add_argument("--max_episode_timesteps", type=int, default=2000)
+    parser.add_argument("--nb_games", type=int, default=20)
+    parser.add_argument("--updates_per_iter", type=int, default=5)
+    parser.add_argument("--alpha", type=float, default=1e-3)
+    parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--clip", type=float, default=0.2)
+    parser.add_argument("--saving_interval", type=int, default=500)
+    parser.add_argument("--state_rep", type=str, default="heuristic")
+    parser.add_argument("--log_dir", type=str, default="runs")
+    parser.add_argument("--load_file", type=str, default=None,
+                        help="Path to partially trained model")
+    parser.add_argument("--save_dir", type=str,
+                        default=f"runs/run-info")
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--comment", type=str, default="test",
+                        help="Run comment for TensorBoard writer.")
+
+    args = parser.parse_args()
+    return args
+
+class MultiEnv:
+    def __init__(self, board_height, board_width, seed, nb_envs):
+        self.agent_con, self.env_con = zip(*[multiprocessing.Pipe() for _ in range(nb_envs)])
+        self.nb_envs = nb_envs
+        self.envs = []
+        for _ in range(nb_envs):
+            self.envs.append(TetrisFlat(board_height=board_height,
+                     board_width=board_width, seed=seed))
+        self.observation_space = self.envs[0].observation_space
+        self.action_space = self.envs[0].action_space
+        for i in range(nb_envs):
+            process = multiprocessing.Process(target=self.run_env, args=(i,))
+            process.start()
+            self.env_con[i].close()
+
+    def run_env(self, index):
+        self.agent_con[index].close()
+        while True:
+            request, action = self.env_con[index].recv()
+            if request == 'step':
+                self.env_con[index].send(self.envs[index].step(action.item()))
+            elif request == 'reset':
+                self.env_con[index].send(self.envs[index].reset())
+            else:
+                raise NotImplementedError
 
 class Log():
     def __init__(self):
@@ -34,21 +90,22 @@ class Log():
 
 
 class PPO():
-    def __init__(self, args: dict, policy_net, env):
+    def __init__(self, args: dict, policy_net, envs):
 
-        self.env = env
-        self.obs_dim = env.observation_space.shape[0]
-        self.action_dim = env.action_space.shape[0]
+        mp = multiprocessing.get_context("spawn")
         # Initialise hyperparams
         self._init_hyperparams(args)
 
-        self.actor = policy_net(self.obs_dim, self.action_dim)
-        self.critic = policy_net(self.obs_dim, 1)
+        self.envs = MultiEnv(board_height=self.board_height,
+                    board_width=self.board_width, seed=self.seed, nb_envs=self.nb_games)
+        self.model = PPONN(envs.observation_space, envs.action_space).to(self.device)
 
-        self.optimiser_actor = torch.optim.Adam(
-            self.actor.parameters(), lr=self.alpha)
-        self.optimiser_critic = torch.optim.Adam(
-            self.critic.parameters(), lr=self.alpha)
+        self.obs_dim = envs.observation_space.shape[0]
+        self.action_dim = envs.action_space.shape[0]
+
+        self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
+        [connection.send(("reset", None)) for connection in envs.agent_con]
+        
 
         self.cov_vars = torch.full(size=(self.action_dim,), fill_value=0.5)
         self.cov_matrix = torch.diag(self.cov_vars)
