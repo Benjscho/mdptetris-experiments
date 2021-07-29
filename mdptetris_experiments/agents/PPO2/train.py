@@ -122,6 +122,7 @@ class PPO():
         obs = torch.FloatTensor(obs).to(self.device)
 
         epoch = 0
+        timesteps = 0
         while True:
             epoch += 1
             old_log_pols = []
@@ -131,6 +132,7 @@ class PPO():
             rewards = []
             dones = []
             for _ in range(self.max_episode_timesteps):
+                timesteps += 1 * self.nb_games
                 states.append(obs)
                 logits, value = self.model(obs)
 
@@ -167,7 +169,7 @@ class PPO():
             new_value = new_value.squeeze()
             old_log_pols = torch.cat(old_log_pols).detach()
             actions = torch.cat(actions)
-            values = torch.cat(values).detach()
+            values = torch.cat(values).detach().squeeze()
             states = torch.cat(states)
 
             gae = 0
@@ -189,16 +191,13 @@ class PPO():
                     policy, value = self.model(states[batch_indices])
                     new_pol = functional.softmax(policy)
 
-                    dist = torch.distributions.MultivariateNormal(policy, self.cov_matrix)
+                    dist = torch.distributions.MultivariateNormal(new_pol, self.cov_matrix)
 
                     # Calculate action log probability
                     new_log_policy = dist.log_prob(actions[batch_indices])
 
-                    # where it went wrong 
-                    #new_m = torch.distributions.Categorical(policy)
-                    #new_log_policy = new_m.log_prob(actions[batch_indices])
                     ratio = torch.exp(new_log_policy - old_log_pols[batch_indices])
-                    actor_loss = -torch.mean(torch.min(ratio*advantages[batch_indices], torch.clamp(
+                    actor_loss = -torch.mean(torch.min(ratio * advantages[batch_indices], torch.clamp(
                         ratio, 1.0 - self.clip, 1.0 + self.clip) * advantages[batch_indices]))
                     critic_loss = functional.smooth_l1_loss(R[batch_indices], value.squeeze())
                     entropy_loss = torch.mean(dist.entropy())
@@ -208,6 +207,7 @@ class PPO():
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                     self.optimiser.step()
             print(f"Epoch: {epoch}, Total loss: {total_loss}")
+            print(f"Timesteps: {timesteps} Average rewards: {np.mean(rewards)}")
 
     def evaluate(self):
         """
