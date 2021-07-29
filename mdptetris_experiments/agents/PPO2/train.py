@@ -104,6 +104,8 @@ class PPO():
         self.model = PPONN(self.envs.observation_space, self.envs.action_space).to(self.device)
         self.model.share_memory()
 
+        self.cov_vars = torch.full(size=(self.envs.action_space,), fill_value=0.5)
+        self.cov_matrix = torch.diag(self.cov_vars)
 
         self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
         
@@ -117,7 +119,7 @@ class PPO():
         print("training")
         [connection.send(("reset", None)) for connection in self.envs.agent_con]
         obs = [connection.recv() for connection in self.envs.agent_con]
-        obs = torch.FloatTensor(np.concatenate(obs)).to(self.device)
+        obs = torch.FloatTensor(obs).to(self.device)
 
         epoch = 0
         while True:
@@ -131,13 +133,24 @@ class PPO():
             for _ in range(self.max_episode_timesteps):
                 states.append(obs)
                 logits, value = self.model(obs)
+
+                dist = torch.distributions.MultivariateNormal(logits, self.cov_matrix)
+
+                # Sample action from distribution
+                action = dist.sample()
+
+                # Calculate action log probability
+                old_log_policy = dist.log_prob(action)
+
                 values.append(value.squeeze())
-                policy = functional.softmax(logits)
-                old_m = torch.distributions.Categorical(policy)
-                action = old_m.sample()
+                #policy = functional.softmax(logits, dim=1)
+                #old_m = torch.distributions.Categorical(policy)
+                #action = old_m.sample()
                 actions.append(action)
-                old_log_policy = old_m.log_prob(action)
+                #old_log_policy = old_m.log_prob(action)
                 old_log_pols.append(old_log_policy)
+                print(action)
+                print(self.envs.agent_con)
                 for conn, action in zip(self.envs.agent_con, action.cpu()):
                     conn.send(("step", action))
                 
