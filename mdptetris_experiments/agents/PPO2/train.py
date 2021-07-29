@@ -117,7 +117,7 @@ class PPO():
         print("training")
         [connection.send(("reset", None)) for connection in self.envs.agent_con]
         obs = [connection.recv() for connection in self.envs.agent_con]
-        obs = torch.FloatTensor(np.concatenate(obs, 0)).to(self.device)
+        obs = torch.FloatTensor(np.concatenate(obs)).to(self.device)
 
         epoch = 0
         while True:
@@ -130,10 +130,10 @@ class PPO():
             dones = []
             for _ in range(self.max_episode_timesteps):
                 states.append(obs)
-                probs, value = self.model(obs)
+                logits, value = self.model(obs)
                 values.append(value.squeeze())
-                distr = functional.softmax(probs)
-                old_m = torch.distributions.Categorical(distr)
+                policy = functional.softmax(logits)
+                old_m = torch.distributions.Categorical(policy)
                 action = old_m.sample()
                 actions.append(action)
                 old_log_policy = old_m.log_prob(action)
@@ -170,9 +170,9 @@ class PPO():
                 for j in range(self.batch_size):
                     batch_indices = ind[int(j * (self.max_episode_timesteps * self.nb_games / self.batch_size)): int(
                         (j+1)*(self.max_episode_timesteps * self.nb_games / self.batch_size))]
-                    distr, value = self.model(states[batch_indices])
-                    new_pol = functional.softmax(distr)
-                    new_m = torch.distributions.Categorical(distr)
+                    policy, value = self.model(states[batch_indices])
+                    new_pol = functional.softmax(policy)
+                    new_m = torch.distributions.Categorical(policy)
                     new_log_policy = new_m.log_prob(actions[batch_indices])
                     ratio = torch.exp(new_log_policy - old_log_pols[batch_indices])
                     actor_loss = -torch.mean(torch.min(ratio*advantages[batch_indices], torch.clamp(

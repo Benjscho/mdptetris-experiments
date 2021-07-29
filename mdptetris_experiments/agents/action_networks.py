@@ -49,8 +49,9 @@ class PPONN(nn.Module):
         self.conv1 = nn.Sequential(nn.Linear(input_dims, 256))
         self.conv2 = nn.Sequential(nn.Linear(256, 256))
         self.conv3 = nn.Sequential(nn.Linear(256, 256))
-        self.actor = nn.Sequential(nn.Linear(256, output_dims))
-        self.critic = nn.Sequential(nn.Linear(256, 1))
+        self.actor = nn.Linear(256, output_dims)
+        self.critic = nn.Linear(256, 1)
+        self._initialise_weights()
 
     def _initialise_weights(self):
         for mod in self.modules():
