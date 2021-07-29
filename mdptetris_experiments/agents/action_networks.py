@@ -56,7 +56,7 @@ class PPONN(nn.Module):
     def _initialise_weights(self):
         for mod in self.modules():
             if isinstance(mod, nn.Linear):
-                nn.init.xavier_uniform_(mod.bias, 0)
+                nn.init.constant_(mod.bias, 0)
     
     def forward(self, x):
         x = F.relu(self.conv1(x))
