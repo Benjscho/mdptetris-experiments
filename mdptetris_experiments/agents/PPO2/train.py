@@ -154,7 +154,7 @@ class PPO():
                 obs, reward, done, info = zip(*[connection.recv() for connection in self.envs.agent_con])
                 obs = torch.FloatTensor(obs).to(self.device)
                 reward = torch.FloatTensor(reward).to(self.device)
-                done = torch.FloatTensor(done).to(self.device)
+                done = torch.BoolTensor(done).to(self.device)
                 rewards.append(reward)
                 dones.append(done)
                 for i in range(self.nb_games):
@@ -167,7 +167,7 @@ class PPO():
             log_probs = torch.cat(log_probs).detach()
             actions = torch.cat(actions)
             states = torch.cat(states)
-            rewards_tg = self.rewards_to_go(rewards, dones)
+            rewards_tg = self.rewards_to_go(rewards, dones).to(self.device)
             V, _ = self.evaluate(states, actions)
             A_k = rewards_tg - V.detach()
 
@@ -252,13 +252,12 @@ class PPO():
         Calculate rewards to go. 
         """
         rtg_batch = []
-        discounted_reward = 0
-        for reward, done in reversed(rewards), reversed(done):
+        discounted_reward = torch.zeros(rewards[0].size()).to(self.device)
+        for reward, done in zip(reversed(rewards), reversed(done)):
             discounted_reward = reward + discounted_reward * self.alpha
             rtg_batch.insert(0, discounted_reward)
-            if done:
-                discounted_reward = 0
-        return torch.tensor(rtg_batch)
+            discounted_reward = discounted_reward * ~done
+        return torch.cat(rtg_batch)
 
     def run_demo(self):
         """
