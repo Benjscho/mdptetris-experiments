@@ -124,7 +124,7 @@ class PPO():
         timesteps = 0
         while True:
             epoch += 1
-            old_log_pols = []
+            log_probs = []
             actions = []
             values = []
             states = []
@@ -141,15 +141,12 @@ class PPO():
                 action = dist.sample()
 
                 # Calculate action log probability
-                old_log_policy = dist.log_prob(action)
+                log_prob = dist.log_prob(action)
 
                 values.append(value)
-                #policy = functional.softmax(logits, dim=1)
-                #old_m = torch.distributions.Categorical(policy)
-                #action = old_m.sample()
                 actions.append(action)
-                #old_log_policy = old_m.log_prob(action)
-                old_log_pols.append(old_log_policy)
+                log_probs.append(log_prob)
+
                 for conn, action in zip(self.envs.agent_con, action.cpu().numpy()):
                     conn.send(("step", action))
                 
@@ -215,6 +212,20 @@ class PPO():
 
             if epoch % self.saving_interval:
                 self.save()
+
+
+    def rewards_to_go(self, rewards, done):
+        """
+        Calculate rewards to go. 
+        """
+        rtg_batch = []
+        discounted_reward = 0
+        for reward, done in reversed(rewards), reversed(done):
+            discounted_reward = reward + discounted_reward * self.alpha
+            rtg_batch.insert(0, discounted_reward)
+            if done:
+                discounted_reward = 0
+        return torch.tensor(rtg_batch)
 
     def evaluate(self):
         """
