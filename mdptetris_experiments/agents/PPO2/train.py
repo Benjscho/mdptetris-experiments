@@ -94,7 +94,6 @@ class Log():
 class PPO():
     def __init__(self, args: dict):
 
-        self.mp = multiprocessing.get_context("spawn")
         # Initialise hyperparams
         self._init_hyperparams(args)
 
@@ -214,6 +213,9 @@ class PPO():
             self.writer.add_scalar(
                 f'PPO-{self.runid}/Total loss', total_loss, epoch)
 
+            if epoch % self.saving_interval:
+                self.save()
+
     def evaluate(self):
         """
         Evaluate current model and watch progress while model trains. 
@@ -306,10 +308,12 @@ class PPO():
                 torch.manual_seed(self.seed)
         
 
-    def _log(self):
+    def _log(self, total_loss, epoch, rewards, timesteps):
         """
         Log info about training to TensorBoard and print to console. 
         """
+
+
         rewards_per_timestep = sum(
             [sum(i) for i in self.log.episode_rewards]) / sum(self.log.batch_durations)
         avg_ep_length = np.mean(self.log.batch_durations)
