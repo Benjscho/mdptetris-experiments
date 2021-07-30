@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch
 import torch.multiprocessing as multiprocessing
-from mdptetris_experiments.agents.action_networks import PPONN
+from mdptetris_experiments.agents.action_networks import NN1DAction, PPONN
 from torch import nn
 import torch.nn.functional as functional
 from torch.utils.tensorboard import SummaryWriter
@@ -100,13 +100,16 @@ class PPO():
         self.envs = MultiEnv(board_height=self.board_height,
                     board_width=self.board_width, seed=self.seed, nb_envs=self.nb_games)
         print("Agents created")
-        self.model = PPONN(self.envs.observation_space, self.envs.action_space).to(self.device)
-        self.model.share_memory()
+        self.actor = NN1DAction(self.envs.observation_space, self.envs.action_space).to(self.device)
+        self.actor.share_memory()
+        self.critic = NN1DAction(self.envs.observation_space, 1).to(self.device)
+        self.critic.share_memory()
 
         self.cov_vars = torch.full(size=(self.envs.action_space,), fill_value=0.5).to(self.device)
         self.cov_matrix = torch.diag(self.cov_vars).to(self.device)
 
-        self.optimiser = torch.optim.Adam(self.model.parameters(), lr=self.alpha)
+        self.actor_optimiser = torch.optim.Adam(self.actor.parameters(), lr=self.alpha)
+        self.critic_optimiser = torch.optim.Adam(self.critic.parameters(), lr=self.alpha)
         
         # Initialise log
         self.log = Log()
@@ -126,14 +129,13 @@ class PPO():
             epoch += 1
             log_probs = []
             actions = []
-            values = []
             states = []
             rewards = []
             dones = []
             for _ in range(self.max_episode_timesteps):
                 timesteps += 1 * self.nb_games
                 states.append(obs)
-                logits, value = self.model(obs)
+                logits = self.actor(obs)
 
                 dist = torch.distributions.MultivariateNormal(logits, self.cov_matrix)
 
@@ -143,7 +145,6 @@ class PPO():
                 # Calculate action log probability
                 log_prob = dist.log_prob(action)
 
-                values.append(value)
                 actions.append(action)
                 log_probs.append(log_prob)
 
@@ -160,13 +161,54 @@ class PPO():
                     if done[i]:
                        self.envs.agent_con[i].send(("reset", None)) 
                        obs[i] = torch.FloatTensor(self.envs.agent_con[i].recv())
-            
-            _, new_value = self.model(obs)
-            new_value = new_value.squeeze()
-            old_log_pols = torch.cat(old_log_pols).detach()
+
+            #self.log.episode_rewards = rewards
+
+            log_probs = torch.cat(log_probs).detach()
             actions = torch.cat(actions)
-            values = torch.cat(values).detach().squeeze()
             states = torch.cat(states)
+            rewards_tg = self.rewards_to_go(rewards, dones)
+            V, _ = self.evaluate(states, actions)
+            A_k = rewards_tg - V.detach()
+
+            # Normalise advantages
+            A_k  = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+
+            for _ in range(self.updates_per_iter):
+                V, curr_log_probs = self.evaluate(states, actions)
+
+                ratios = torch.exp(curr_log_probs - log_probs)
+
+                surr1 = ratios * A_k
+                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+
+                actor_loss = (-torch.min(surr1, surr2)).mean()
+                critic_loss = nn.MSELoss()(V, rewards_tg)
+
+                self.actor_optimiser.zero_grad()
+                actor_loss.backward(retain_graph=True)
+                self.actor_optimiser.step()
+
+                self.critic_optimiser.zero_grad()
+                critic_loss.backward(retain_graph=True)
+                self.critic_optimiser.step()
+
+                #self.log.actor_losses.append(actor_loss.detach())
+
+
+            avg_rewards = torch.mean(torch.cat(rewards))
+            print(f"Epoch: {epoch}, Actor loss: {actor_loss}")
+            print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
+            self.writer.add_scalar(
+                f'PPO-{self.runid}/Average episode reward', avg_rewards, timesteps)
+            self.writer.add_scalar(
+                f'PPO-{self.runid}/Total loss', actor_loss, epoch)
+
+            if epoch % self.saving_interval:
+                self.save()
+
+            continue
+            ######
 
             gae = 0
             R = []
@@ -202,16 +244,7 @@ class PPO():
                     total_loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                     self.optimiser.step()
-            avg_rewards = torch.mean(torch.cat(rewards))
-            print(f"Epoch: {epoch}, Total loss: {total_loss}")
-            print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
-            self.writer.add_scalar(
-                f'PPO-{self.runid}/Average episode reward', avg_rewards, timesteps)
-            self.writer.add_scalar(
-                f'PPO-{self.runid}/Total loss', total_loss, epoch)
-
-            if epoch % self.saving_interval:
-                self.save()
+            
 
 
     def rewards_to_go(self, rewards, done):
@@ -227,7 +260,7 @@ class PPO():
                 discounted_reward = 0
         return torch.tensor(rtg_batch)
 
-    def evaluate(self):
+    def run_demo(self):
         """
         Evaluate current model and watch progress while model trains. 
         """
@@ -255,12 +288,24 @@ class PPO():
             if done:
                 timestep = 0
                 obs = env.reset()
+    
+    def evaluate(self, state_b, action_b):
+        """
+        Estimate observation values and log probabilities of actions. 
+        """
+        V = self.critic(state_b).squeeze()
+        res = self.actor(state_b)
+
+        dist = torch.distributions.MultivariateNormal(res, self.cov_matrix)
+        log_probs = dist.log_prob(action_b)
+        return V, log_probs
 
     def save(self):
         """
         Save current agent state and associated run log details. 
         """
-        torch.save(self.model, f"{self.save_dir}/model")
+        torch.save(self.actor, f"{self.save_dir}/actor")
+        torch.save(self.critic, f"{self.save_dir}/critic")
         self.log.save(self.save_dir)
 
     def _init_hyperparams(self, args: dict):
