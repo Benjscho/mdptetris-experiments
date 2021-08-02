@@ -182,7 +182,7 @@ def train(args: argparse.Namespace):
         # Epoch increase and decrement epsilon
         epoch += 1
         epsilon -= epsilon_decay_rate
-        epsilon = min(epsilon, args.final_epsilon)
+        epsilon = max(epsilon, args.final_epsilon)
 
         batch = random.sample(replay_buffer, min(
             len(replay_buffer), args.batch_size))
