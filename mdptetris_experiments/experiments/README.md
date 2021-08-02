@@ -17,7 +17,7 @@ Reward | 2 | Lines cleared, lines overflowed over X pieces
 - Linear baseline (Dellacherie features and weights)
 - Random agent
 
-## Experiments to run
+## Proposed experiments to run
 
 Algorithm | Height + width | Pieces | State representation | Reward | RunID
 ---|---|---|---|---|---
@@ -36,12 +36,43 @@ PPO | (10, 10) | Standard | (PieceID, Board 2D) | lines cleared
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared
 PPO | (10, 10) | Standard | (Board inc. Piece 2D) | lines cleared
 PPO | (10, 10) | Standard | Heuristic | lines cleared
-PPO | (20, 10) | Standard | ? - tbd by 10,10 experiments | lines cleared
+PPO | (20, 10) | Standard | ? - tbd by 10,10 experiments | lines cleared | 20210730T093417Z
 Experiments below only if time is available
 Q-Learning | (2,6) | Melax | (PieceID, Board 2D) | lines overflowed over 10,000 pieces
 Q-Learning | (2,6) | Melax | (Board inc. Piece 2D) | lines overflowed over 10,000 pieces
 Q-Learning | (2,6) | Melax | (Board inc. Piece 1D) | lines overflowed over 10,000 pieces
 Q-Learning | (2,6) | Melax | Heuristic | lines overflowed over 10,000 pieces
+
+## Model experiments to run
+
+Algorithm | Height + width | Pieces | State representation | Reward | RunID
+---|---|---|---|---|---
+DQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
+DQN | (10, 10) | Standard | Heuristic | lines cleared | 20210715T113035Z
+DQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
+DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210802T203842Z -- This run it skips straight to final epsilon, interesting experiment? 
+DQN | (20, 10) | Standard | Heuristic | lines cleared | 
+PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
+PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
+
+Just had an accident where the epsilon went to below zero, this highlights I
+need to test the trained agents! This DQN is running for ages now. I could be
+getting ace performance... Don't just take the results of the training. Verify
+with tests of the trained models. 
+
+## Test demos to run
+
+Algorithm | Height + width | Pieces | State representation | Reward | RunID
+---|---|---|---|---|---
+Linear baseline (Random agent) | (20, 10) | Standard | Heuristic | lines cleared
+Linear baseline (Dellacherie weights) | (10, 10) | Standard | Heuristic | lines cleared
+Linear baseline (Dellacherie weights) | (20, 10) | Standard | Heuristic | lines cleared
+DQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
+DQN | (10, 10) | Standard | Heuristic | lines cleared | 20210715T113035Z
+DQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
+DQN | (20, 10) | Standard | Heuristic | lines cleared | 
+PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
+PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
 
 ## Data to collect in experiments

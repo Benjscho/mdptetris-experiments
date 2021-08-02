@@ -15,7 +15,7 @@
 
 ## PPO
 ### PPO Full State Space
-`python mdptetris_experiments/agents/PPO/main.py`
+`python mdptetris_experiments/agents/PPO2/main.py`
 
 ### PPO Small Board
-`python mdptetris_experiments/agents/PPO/main.py --board_height=10`
+`python mdptetris_experiments/agents/PPO2/main.py --board_height=10`
