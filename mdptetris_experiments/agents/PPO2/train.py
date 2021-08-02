@@ -241,7 +241,7 @@ class PPO():
 
     def run_demo(self):
         """
-        Evaluate current model and watch progress while model trains. 
+        #TODO: Evaluate current model and watch progress while model trains. 
         """
         env = TetrisFlat(board_height=self.board_height,
                          board_width=self.board_width, seed=self.seed)
@@ -344,42 +344,8 @@ class PPO():
 
     def _log(self, total_loss, epoch, rewards, timesteps):
         """
-        Log info about training to TensorBoard and print to console. 
+        #TODO Log info about training to TensorBoard and print to console. 
         """
-
-        rewards_per_timestep = sum(
-            [sum(i) for i in self.log.episode_rewards]) / sum(self.log.batch_durations)
-        avg_ep_length = np.mean(self.log.batch_durations)
-        avg_ep_rewards = np.mean([np.sum(i)
-                                 for i in self.log.episode_rewards])
-        avg_actor_loss = np.mean([losses.cpu().float().mean()
-                                 for losses in self.log.actor_losses])
-
-        self.log.avg_ep_rewards.append(avg_ep_rewards)
-        self.log.avg_ep_durations.append(avg_ep_length)
-        self.log.avg_actor_losses.append(avg_actor_loss)
-        self.log.epoch_timesteps.append(self.log.timesteps)
-
-        print(flush=True)
-        print(
-            f"---------------------- Iteration {self.log.epochs} -------------", flush=True)
-        print(f"Average episode length: {avg_ep_length}", flush=True)
-        print(f"Average episode reward: {avg_ep_rewards}", flush=True)
-        print(f"Average Loss: {avg_actor_loss}", flush=True)
-        print(f"Timesteps so far: {self.log.timesteps}", flush=True)
-        print("-------------------------------------------------", flush=True)
-        print(flush=True)
-
-        self.writer.add_scalar(
-            f'PPO-{self.runid}/Average episode length', avg_ep_length, self.log.epochs)
-        self.writer.add_scalar(
-            f'PPO-{self.runid}/Average episode rewards', avg_ep_rewards, self.log.epochs)
-        self.writer.add_scalar(
-            f'PPO-{self.runid}/Average actor loss', avg_actor_loss, self.log.epochs)
-        self.writer.add_scalar(f'PPO-{self.runid}/Rewards per 100 timesteps',
-                               rewards_per_timestep * 100, self.log.timesteps)
-
-        self.log.reset_batches()
 
 
 if __name__ == "__main__":
