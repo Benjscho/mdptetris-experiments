@@ -294,8 +294,19 @@ class PPO():
         """
         if self.load_dir == None:
             raise ValueError("No load file given")
+
+        actor_old = f"{self.load_dir}/actor"
+        critic_old = f"{self.load_dir}/critic"
+
+        # Handle old style loads
+        if os.path.exists(actor_old) and os.path.exists(critic_old):
+            self.actor = torch.load(actor_old)
+            self.critic = torch.load(critic_old)
+            return
+
         actor = f"{self.load_dir}/actor.pt"
         critic = f"{self.load_dir}/critic.pt"
+
         if not os.path.exists(actor):
             raise ValueError("Actor model does not exist")
         if not os.path.exists(critic):
