@@ -294,8 +294,8 @@ class PPO():
         """
         if self.load_dir == None:
             raise ValueError("No load file given")
-        actor = f"{self.load_dir}/actor"
-        critic = f"{self.load_dir}/critic"
+        actor = f"{self.load_dir}/actor.pt"
+        critic = f"{self.load_dir}/critic.pt"
         if not os.path.exists(actor):
             raise ValueError("Actor model does not exist")
         if not os.path.exists(critic):
