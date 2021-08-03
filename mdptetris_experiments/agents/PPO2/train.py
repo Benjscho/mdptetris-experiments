@@ -215,12 +215,7 @@ class PPO():
                 #self.log.actor_losses.append(actor_loss.detach())
 
             avg_rewards = torch.mean(torch.cat(rewards))
-            print(f"Epoch: {epoch}, Actor loss: {actor_loss}")
-            print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
-            self.writer.add_scalar(
-                f'PPO-{self.runid}/Average episode reward', avg_rewards, timesteps)
-            self.writer.add_scalar(
-                f'PPO-{self.runid}/Total loss', actor_loss, epoch)
+            self._log(avg_rewards, epoch, timesteps, actor_loss)
 
             if epoch % self.saving_interval:
                 self.save()
@@ -282,7 +277,7 @@ class PPO():
 
     def save(self):
         """
-        Save current agent state and associated run log details. 
+        Save current agent state as state dict and associated run log details. 
         """
         torch.save(self.actor.state_dict(), f"{self.save_dir}/actor.pt")
         torch.save(self.critic.state_dict(), f"{self.save_dir}/critic.pt")
@@ -375,10 +370,20 @@ class PPO():
             else:
                 torch.manual_seed(self.seed)
 
-    def _log(self, total_loss, epoch, rewards, timesteps):
+    def _log(self, avg_rewards, epoch, timesteps, actor_loss):
         """
-        #TODO Log info about training to TensorBoard and print to console. 
+        Log info about training to TensorBoard, print to console, and add to
+        log object for saving.  
         """
+        print(f"Epoch: {epoch}, Actor loss: {actor_loss}")
+        print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
+        self.writer.add_scalar(
+            f'PPO-{self.runid}/Average episode reward', avg_rewards, timesteps)
+        self.writer.add_scalar(
+            f'PPO-{self.runid}/Total loss', actor_loss, epoch)
+        self.log.avg_ep_rewards.append(avg_rewards)
+        self.log.epoch_timesteps.append(timesteps)
+        self.log.avg_actor_losses.append(actor_loss)
 
 def train(args: dict):
     agent = PPO(args)
