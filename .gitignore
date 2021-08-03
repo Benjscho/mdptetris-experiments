@@ -1,7 +1,0 @@
-.DS_STORE
-*.code-workspace
-.vscode/
-*.egg-info/
-*.swp
-__pycache__/
-runs/
