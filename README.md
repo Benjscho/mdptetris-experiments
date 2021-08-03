@@ -31,3 +31,8 @@ agent = LinearGame(weights=np.array([-1, 1, -1, -1, -4, -1]))
 cleared = agent.play_game()
 print(f"{cleared} rows cleared")
 ```
+
+This agent is very successful:
+<p align="left">
+    <img src="assets/dellacherie_400.mov" width="400">
+</p>
