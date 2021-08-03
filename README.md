@@ -17,9 +17,14 @@ running `pip install -e .`.
 ### Linear agent
 
 The linear agent can be run with the default weights created by Pierre 
-Dellacherie using `python mdptetris_experiments/agents/linear_agent.py`. 
+Dellacherie using `python mdptetris_experiments/agents/linear_agent.py render`. 
 This agent is very effective at clearing lines, so this can take some
 time to run.
+
+This agent is very successful:
+<p align="left">
+    <img src="assets/dellacherie.gif" width="400">
+</p>
 
 To customize the weighting of the agent, a new instance can be created:
 
@@ -32,7 +37,3 @@ cleared = agent.play_game()
 print(f"{cleared} rows cleared")
 ```
 
-This agent is very successful:
-<p align="left">
-    <img src="assets/dellacherie_400.mov" width="400">
-</p>
