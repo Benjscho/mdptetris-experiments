@@ -50,8 +50,7 @@ Algorithm | Height + width | Pieces | State representation | Reward | RunID
 DQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
 DQN | (10, 10) | Standard | Heuristic | lines cleared | 20210715T113035Z
 DQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
-DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210802T203842Z -- This run it skips straight to final epsilon, interesting experiment? 
-DQN | (20, 10) | Standard | Heuristic | lines cleared | 
+DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210803T070646Z
 PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
@@ -74,8 +73,6 @@ DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210803T070646Z
 PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
-
-I've messed up the saving so I may need to re-run these... 
 
 ## Data to collect in experiments
 

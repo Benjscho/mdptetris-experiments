@@ -34,6 +34,6 @@ from mdptetris_experiments.agents.linear_agent import LinearGame
 
 agent = LinearGame(weights=np.array([-1, 1, -1, -1, -4, -1]))
 cleared = agent.play_game()
-print(f"{cleared} rows cleared")
+print(f"{cleared:,} rows cleared")
 ```
 
