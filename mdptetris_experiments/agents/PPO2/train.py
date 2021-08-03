@@ -27,10 +27,10 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--alpha", type=float, default=1e-3)
     parser.add_argument("--clip", type=float, default=0.2)
     parser.add_argument("--saving_interval", type=int, default=500)
-    parser.add_argument("--state_rep", type=str, default="heuristic")
+    parser.add_argument("--state_rep", type=str, default="1D")
     parser.add_argument("--log_dir", type=str, default="runs")
-    parser.add_argument("--load_file", type=str, default=None,
-                        help="Path to partially trained model")
+    parser.add_argument("--load_dir", type=str, default=None,
+                        help="Path to partially trained actor and critic models.")
     parser.add_argument("--save_dir", type=str,
                         default=f"runs/run-info")
     parser.add_argument("--seed", type=int, default=None)
@@ -284,9 +284,30 @@ class PPO():
         """
         Save current agent state and associated run log details. 
         """
-        torch.save(self.actor, f"{self.save_dir}/actor")
-        torch.save(self.critic, f"{self.save_dir}/critic")
+        torch.save(self.actor.state_dict(), f"{self.save_dir}/actor.pt")
+        torch.save(self.critic.state_dict(), f"{self.save_dir}/critic.pt")
         self.log.save(self.save_dir)
+
+    def load(self):
+        """
+        Load pre-trained models from save files. 
+        """
+        if self.load_dir == None:
+            raise ValueError("No load file given")
+        actor = f"{self.load_dir}/actor"
+        critic = f"{self.load_dir}/critic"
+        if not os.path.exists(actor):
+            raise ValueError("Actor model does not exist")
+        if not os.path.exists(critic):
+            raise ValueError("Critic model does not exist")
+        
+        self.actor.load_state_dict(torch.load(actor)).to(self.device)
+        self.actor.eval()
+        self.critic.load_state_dict(torch.load(critic)).to(self.device)
+        self.critic.eval()
+
+    def test(self):
+        pass
 
     def _init_hyperparams(self, args: dict):
         # Set default hyperparams
@@ -305,6 +326,7 @@ class PPO():
         self.gpu = 0
         self.save_dir = None
         self.log_dir = None
+        self.load_dir = None
         self.comment = None
         self.seed = None
 
@@ -347,6 +369,14 @@ class PPO():
         #TODO Log info about training to TensorBoard and print to console. 
         """
 
+def train(args: dict):
+    agent = PPO(args)
+    agent.train()
+
+def test(args: dict):
+    agent = PPO(args)
+    agent.load()
+    agent.test()
 
 if __name__ == "__main__":
     args = vars(get_args())
