@@ -1,11 +1,13 @@
 import os
 import random
+import sys
 import time
-import torch
 from typing import Tuple
-import numpy as np
+
 import gym_mdptetris.envs
-from gym_mdptetris.envs import board, piece, feature_functions
+import numpy as np
+import torch
+from gym_mdptetris.envs import board, feature_functions, piece
 
 
 class LinearGame():
@@ -144,7 +146,12 @@ class LinearGame():
         done = self.board.wall_height > self.board_height
         return reward, done
 
-    def play_game(self, render=False) -> int:
+    def play_game(self, render: bool = False) -> int:
+        """
+        Play a game with the current linear weights of the agent. 
+
+        :param render: Indicate if the game should be rendered. 
+        """
         cleared = 0
 
         done = False
@@ -154,6 +161,8 @@ class LinearGame():
             self.new_piece()
             if render:
                 print(self.board)
+                print(f"Lines cleared: {cleared:,}")
+                print()
 
         return cleared
 
@@ -172,50 +181,14 @@ class LinearGameStandard(LinearGame):
         return torch.FloatTensor(self.board.board[:self.board_height, :].flatten())
 
 
-class MultiLinearGame():
-    def __init__(self, nb_games: int = 10,
-                 weights: np.ndarray = np.array([-1, 1, -1, -1, -4, -1]),
-                 board_height: int = 20,
-                 board_width: int = 10,
-                 piece_set: str = 'pieces4.dat',
-                 seed: int = 12345):
-        self.games = []
-        for _ in range(nb_games):
-            self.games.append(LinearGame(weights=weights, board_height=board_height,
-                              board_width=board_width, piece_set=piece_set, seed=seed))
-
-    def seed(self, seed_value):
-        for game in self.games:
-            game.seed(seed_value)
-
-    def reset(self):
-        observations = []
-        for game in self.games:
-            observations.append(game.reset())
-
-        return observations
-
-    def get_next_states(self):
-        states = []
-        for game in self.games:
-            states.append(game.get_next_states())
-        return states
-
-    def step(self, actions):
-        rewards = []
-        dones = []
-        for action, game in zip(actions, self.games):
-            r, d = game.step(action)
-            rewards.append(r)
-            dones.append(d)
-        return rewards, dones
-
-
 if __name__ == "__main__":
+    render = False
+    if len(sys.argv) > 1 and sys.argv[1] == "render":
+        render = True
     lg = LinearGame()
     start = time.time()
     print("Starting")
-    cleared = lg.play_game()
+    cleared = lg.play_game(render)
     end = time.time()
     print(f"{cleared} rows cleared")
     print(f"That took {end - start}s")
