@@ -14,26 +14,40 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 def get_args() -> argparse.Namespace:
+    """
+    Get hyperparameters from arguments and set default parameters. 
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0',
                         help="The GPU to train the agent on")
-    parser.add_argument("--board_height", type=int, default=20)
-    parser.add_argument("--board_width", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--batch_timesteps", type=int, default=10000)
-    parser.add_argument("--max_episode_timesteps", type=int, default=2000)
-    parser.add_argument("--nb_games", type=int, default=8)
-    parser.add_argument("--updates_per_iter", type=int, default=5)
-    parser.add_argument("--alpha", type=float, default=1e-3)
-    parser.add_argument("--clip", type=float, default=0.2)
-    parser.add_argument("--saving_interval", type=int, default=500)
-    parser.add_argument("--state_rep", type=str, default="1D")
-    parser.add_argument("--log_dir", type=str, default="runs")
+    parser.add_argument("--board_height", type=int, default=20,
+                        help="Board height for the Tetris environments")
+    parser.add_argument("--board_width", type=int, default=10,
+                        help="Board width for the Tetris environments")
+    parser.add_argument("--max_episode_timesteps", type=int,
+                        default=2000, help="Max timesteps in an episode rollout")
+    parser.add_argument("--max_epochs", type=int,
+                        default=20000, help="Max epochs for training")
+    parser.add_argument("--max_total_timesteps", type=int,
+                        default=1.5e8, help="Max timesteps to train")
+    parser.add_argument("--nb_games", type=int, default=8,
+                        help="Number of environments to run in parallel")
+    parser.add_argument("--updates_per_iter", type=int, default=5,
+                        help="Number of network updates per iteration")
+    parser.add_argument("--alpha", type=float, default=1e-3,
+                        help="Learning rate for actor and critic optimisers")
+    parser.add_argument("--clip", type=float, default=0.2,
+                        help="Clip value for network update")
+    parser.add_argument("--saving_interval", type=int, default=100,
+                        help="Training iterations between model and log saves")
+    parser.add_argument("--log_dir", type=str, default="runs",
+                        help="Directory for TensorBoard logs")
     parser.add_argument("--load_dir", type=str, default=None,
                         help="Path to partially trained actor and critic models.")
     parser.add_argument("--save_dir", type=str,
-                        default=f"runs/run-info")
-    parser.add_argument("--seed", type=int, default=None)
+                        default=f"runs/run-info", help="Path to save models")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Seed value for environments and randomness")
     parser.add_argument("--comment", type=str, default="test",
                         help="Run comment for TensorBoard writer.")
 
@@ -43,6 +57,17 @@ def get_args() -> argparse.Namespace:
 
 class MultiEnv:
     def __init__(self, board_height, board_width, seed, nb_envs):
+        """
+        Multi-processing environment for running environments in parallel.
+
+        Attribution: Based on the MultipleEnvironments class by Viet Nguyen in 
+        https://github.com/uvipen/Super-mario-bros-PPO-pytorch
+
+        :param board_height: height of the board 
+        :param board_width: width of the board
+        :param seed: seed value for the environments
+        :param nb_envs: number of environments to run in parallel
+        """
         self.agent_con, self.env_con = zip(
             *[multiprocessing.Pipe() for _ in range(nb_envs)])
         self.nb_envs = nb_envs
@@ -58,6 +83,11 @@ class MultiEnv:
             self.env_con[i].close()
 
     def run_env(self, index):
+        """
+        Target function for each process to run. 
+
+        :param index: index of the environment process. 
+        """
         self.agent_con[index].close()
         while True:
             request, action = self.env_con[index].recv()
@@ -71,6 +101,9 @@ class MultiEnv:
 
 class Log():
     def __init__(self):
+        """
+        Class to store log values and save them to disk. 
+        """
         self.time_d = time.time_ns()
         self.timesteps: int = 0
         self.epochs: int = 0
@@ -83,11 +116,19 @@ class Log():
         self.epoch_timesteps = []
 
     def reset_batches(self):
+        """
+        Reset log batches.
+        """
         self.batch_durations: list[int] = []
         self.episode_rewards: list[list[int]] = []
         self.actor_losses = []
 
     def save(self, save_dir):
+        """
+        Save the log to disk.
+
+        :param save_dir: The directory to save logs to. 
+        """
         np.array(self.avg_ep_rewards).tofile(
             f"{save_dir}/avg_ep_rewards.csv", sep=',')
         np.array(self.avg_ep_durations).tofile(
@@ -100,8 +141,12 @@ class Log():
 
 class PPO():
     def __init__(self, args: dict):
+        """
+        Class for multiprocessing PPO. 
 
-        # Initialise hyperparams
+        :param args: dictionary of hyperparameters 
+        """
+        # Initialise hyperparams using args
         self._init_hyperparams(args)
 
         self.envs = MultiEnv(board_height=self.board_height,
@@ -128,7 +173,7 @@ class PPO():
 
     def train(self):
         """
-        Train the agent networks for a number of timesteps. 
+        Train the agent networks while the epochs and timesteps are less than the max values. 
         """
         print("training")
         [connection.send(("reset", None))
@@ -138,7 +183,7 @@ class PPO():
 
         epoch = 0
         timesteps = 0
-        while True:
+        while epoch < self.max_epochs and timesteps < self.max_total_timesteps:
             epoch += 1
             log_probs = []
             actions = []
@@ -178,8 +223,6 @@ class PPO():
                        obs[i] = torch.FloatTensor(
                            self.envs.agent_con[i].recv())
 
-            #self.log.episode_rewards = rewards
-
             log_probs = torch.cat(log_probs).detach()
             actions = torch.cat(actions)
             states = torch.cat(states)
@@ -197,7 +240,7 @@ class PPO():
 
                 ratios = torch.exp(curr_log_probs - log_probs)
 
-                # Calculate surrogate losses 
+                # Calculate surrogate losses
                 surr1 = ratios * A_k
                 surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
 
@@ -211,8 +254,6 @@ class PPO():
                 self.critic_optimiser.zero_grad()
                 critic_loss.backward(retain_graph=True)
                 self.critic_optimiser.step()
-
-                #self.log.actor_losses.append(actor_loss.detach())
 
             avg_rewards = torch.mean(torch.cat(rewards))
             self._log(avg_rewards, epoch, timesteps, actor_loss)
@@ -267,6 +308,8 @@ class PPO():
     def evaluate(self, state_b, action_b):
         """
         Estimate observation values and log probabilities of actions. 
+
+        :return: Values of the state batches and log probabilities of the actions taken.
         """
         V = self.critic(state_b).squeeze()
         res = self.actor(state_b)
@@ -282,6 +325,15 @@ class PPO():
         torch.save(self.actor.state_dict(), f"{self.save_dir}/actor.pt")
         torch.save(self.critic.state_dict(), f"{self.save_dir}/critic.pt")
         self.log.save(self.save_dir)
+
+    def set_load_dir(self, load_dir: str):
+        """
+        Change the load directory for the agent.
+
+        :param load_dir: Path to new load directory 
+        """
+        assert os.path.exists(load_dir)
+        self.load_dir = load_dir
 
     def load(self):
         """
@@ -306,7 +358,7 @@ class PPO():
             raise ValueError("Actor model does not exist")
         if not os.path.exists(critic):
             raise ValueError("Critic model does not exist")
-        
+
         self.actor.load_state_dict(torch.load(actor)).to(self.device)
         self.actor.eval()
         self.critic.load_state_dict(torch.load(critic)).to(self.device)
@@ -316,17 +368,21 @@ class PPO():
         pass
 
     def _init_hyperparams(self, args: dict):
-        # Set default hyperparams
+        """
+        Initialise hyperparameters for the agent. 
+
+        :param args: Dictionary of hyperparameters 
+        """
+        # Set default hyperparams (these are all replaced by the defaults in argparse anyway)
+        # just defined here for variable access without errors.
         self.board_height = 20
         self.board_width = 10
-        self.batch_size = 16
-        self.batch_timesteps = 10000
-        self.max_episode_timesteps = 512
-        self.total_training_steps = 2e7
+        self.max_episode_timesteps = 2000
+        self.max_epochs = 20000
+        self.max_total_timesteps = 1.5e8
         self.nb_games = 8
         self.alpha = 1e-3
-        self.beta = 0.01
-        self.saving_interval = 50
+        self.saving_interval = 100
         self.clip = 0.2
         self.updates_per_iter = 5
         self.gpu = 0
@@ -336,12 +392,14 @@ class PPO():
         self.comment = None
         self.seed = None
 
+        # Replace all defaults with hyperparams in args
         for arg, val in args.items():
             if type(val) == str:
                 exec(f'self.{arg} = "{val}"')
             else:
                 exec(f'self.{arg} = {val}')
 
+        # Set device 
         self.device = torch.device(
             f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -374,6 +432,11 @@ class PPO():
         """
         Log info about training to TensorBoard, print to console, and add to
         log object for saving.  
+
+        :param avg_rewards: Average rewards from a rollout
+        :param epoch: Current training epoch
+        :param timesteps: Current total timesteps
+        :param actor_loss: Avg actor loss 
         """
         print(f"Epoch: {epoch}, Actor loss: {actor_loss}")
         print(f"Timesteps: {timesteps} Average rewards: {avg_rewards}")
@@ -385,14 +448,17 @@ class PPO():
         self.log.epoch_timesteps.append(timesteps)
         self.log.avg_actor_losses.append(actor_loss)
 
+
 def train(args: dict):
     agent = PPO(args)
     agent.train()
+
 
 def test(args: dict):
     agent = PPO(args)
     agent.load()
     agent.test()
+
 
 if __name__ == "__main__":
     args = vars(get_args())
