@@ -3,6 +3,7 @@ import random
 import sys
 import time
 from typing import Tuple
+from torch.utils.tensorboard import SummaryWriter
 
 import gym_mdptetris.envs
 import numpy as np
@@ -181,10 +182,38 @@ class LinearGameStandard(LinearGame):
         return torch.FloatTensor(self.board.board[:self.board_height, :].flatten())
 
 
+def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', save_dir: str='./'):
+    """
+    Method to test performance of Dellacherie method.
+
+    :param seed: Seed for the environment 
+    :param nb_games: number of episodes to run test for
+    :param log_dir: Directory to log TensorBoard results to
+    :param save_dir: Directory to save episode reward results to
+    """
+    runid = "Dellacherie" + time.strftime('%Y%m%dT%H%M%SZ')
+    writer = SummaryWriter(log_dir, comment=f"Dellacherie-{runid}")
+    lg = LinearGame()
+    episode_rewards = []
+    for i in range(nb_games):
+        reward = lg.play_game()
+        episode_rewards.append(reward)
+        writer.add_scalar(f"Dellacherie-{runid}/Episode reward", reward, i)
+
+    np.array(episode_rewards).tofile(f"{save_dir}/Dellacherie-rewards-{runid}.csv", sep=',')
+    print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
+
+
 if __name__ == "__main__":
     render = False
-    if len(sys.argv) > 1 and sys.argv[1] == "render":
-        render = True
+    if len(sys.argv) > 1:
+        if "render" in sys.argv:
+            render = True
+        if "test" in sys.argv:
+            print("Testing")
+            test_performance(save_dir='./runs')
+            sys.exit(0)
+            
     lg = LinearGame()
     start = time.time()
     print("Starting")
