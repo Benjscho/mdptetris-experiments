@@ -198,6 +198,7 @@ def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', sa
     for i in range(nb_games):
         reward = lg.play_game()
         episode_rewards.append(reward)
+        lg.reset()
         writer.add_scalar(f"Dellacherie-{runid}/Episode reward", reward, i)
 
     np.array(episode_rewards).tofile(f"{save_dir}/Dellacherie-rewards-{runid}.csv", sep=',')
