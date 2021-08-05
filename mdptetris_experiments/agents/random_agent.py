@@ -90,7 +90,7 @@ def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', sa
     :param log_dir: Directory to log TensorBoard results to
     :param save_dir: Directory to save episode reward results to
     """
-    runid = "Random" + time.strftime('%Y%m%dT%H%M%SZ')
+    runid = time.strftime('%Y%m%dT%H%M%SZ')
     writer = SummaryWriter(log_dir, comment=f"Random-{runid}")
     lg = RandomLinearGame()
     episode_rewards = []

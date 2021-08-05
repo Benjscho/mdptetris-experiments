@@ -53,7 +53,172 @@ state_rep = {
 }
 
 
-def save(save_dir: str, model: nn.Module, epochs: np.ndarray, timesteps: np.ndarray):
+class DQN:
+    def __init__(self, args: argparse.Namespace):
+        self.env = state_rep[args.state_rep][1](board_height=args.board_height,
+                                       board_width=args.board_width)
+
+        self._init_hyperparams(args)
+
+        # Initialise models
+        input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
+        if args.load_file != None:
+            self.model = torch.load(args.load_file)
+        else:
+            self.model = state_rep[args.state_rep][0](input_dims).to(self.device)
+        self.target = state_rep[args.state_rep][0](input_dims).to(self.device)
+        self.target.load_state_dict(self.model.state_dict())
+        self.target.eval()
+
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=args.alpha)
+        self.replay_buffer = deque(maxlen=args.replay_buffer_length)
+        self.loss_criterion = nn.MSELoss()
+        
+
+    def train(self):
+        self.epochs = []
+        self.timesteps = []
+        state = self.env.reset().to(self.device)
+
+        self.epoch = 0
+        self.timestep = 0
+        ep_score = 0
+        while self.epoch < self.total_epochs:
+            action, new_state = self.get_action_and_new_state(state)
+
+            reward, done = self.env.step(action) 
+            ep_score += reward
+            self.timestep += 1
+
+            self.replay_buffer.append([state, reward, new_state, done])
+            self.timesteps.append(reward)
+            if done:
+                self.update_model()
+                self._log(ep_score)
+                ep_score = 0
+                state = self.env.reset()
+            else:
+                state = new_state
+                
+    def update_model(self):
+        if len(self.replay_buffer) < self.training_start:
+            return
+
+        # Increment epoch and decrement epsilon
+        self.epoch += 1
+        self.epsilon -= self.epsilon_decay_rate
+        self.epsilon = max(self.epsilon, self.final_epsilon)
+
+        batch = random.sample(self.replay_buffer, min(
+            len(self.replay_buffer), self.batch_size))
+
+        state_b, reward_b, new_state_b, done_b = zip(*batch)
+        state_b = torch.stack(state_b).to(self.device)
+        reward_b = torch.from_numpy(
+            np.array(reward_b, dtype=np.float32)[:, None]).to(self.device)
+        new_state_b = torch.stack(new_state_b).to(self.device)
+
+        # Use model to judge state values, train prediction against target network
+        q_vals = self.model(state_b).to(self.device)
+        with torch.no_grad():
+            next_predictions = self.target(new_state_b)
+
+        y_b = []
+        for reward, done, prediction in zip(reward_b, done_b, next_predictions):
+            y_b.append(reward if done else reward + self.gamma*prediction)
+        y_b = torch.cat(y_b).to(self.device)
+
+        # Calculate loss and train network
+        self.optimizer.zero_grad()
+        loss = self.loss_criterion(q_vals, y_b)
+        loss.backward()
+        self.optimizer.step()
+
+        # Update the target network
+        if self.epoch % self.target_network_update == 0:
+            self.target.load_state_dict(self.model.state_dict())
+        
+        if self.epoch % self.saving_interval == 0:
+            self.save()
+
+    
+    def get_action_and_new_state(self, state):
+        action_states = self.env.get_next_states()
+
+        new_actions, new_states = zip(*action_states.items())
+        new_states = torch.stack(new_states).to(self.device)
+
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(new_states)[:, 0]
+        self.model.train()
+
+        if random.random() <= self.epsilon:
+            idx = random.randint(0, len(new_actions) - 1)
+        else:
+            idx = torch.argmax(predictions).item()
+
+        new_state = new_states[idx, :]
+        return new_actions[idx], new_state
+        
+
+    def _log(self, ep_score: int):
+        self.epochs.append(ep_score)
+        print(f"Epoch: {self.epoch}, score: {ep_score}")
+        self.writer.add_scalar(f'Train-{self.runid}/Lines cleared per epoch',
+                          ep_score, self.epoch - 1)
+        self.writer.add_scalar(f'Train-{self.runid}/Lines cleared over last 100 timesteps',
+                          sum(self.timesteps[-100:]), self.timestep - 1)
+        self.writer.add_scalar(f'Train-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
+
+    def _init_hyperparams(self, args):
+        self.device = torch.device(
+            f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+
+        self.runid = time.strftime('%Y%m%dT%H%M%SZ')
+        self.save_dir = f"{args.save_dir}-{self.runid}"
+
+        # Writer for TensorBoard
+        self.writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{self.runid}")
+        if not os.path.isdir(self.save_dir):
+            os.makedirs(self.save_dir)
+        with open(f"{self.save_dir}/args.txt", 'w') as f:
+            f.write(str(args))
+
+        self.epsilon = args.init_epsilon
+        self.epsilon_decay_rate = (args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
+        self.total_epochs = args.epochs
+        self.training_start = args.training_start
+        self.final_epsilon = args.final_epsilon
+        self.batch_size = args.batch_size
+        self.gamma = args.gamma
+        self.target_network_update = args.target_network_update
+        self.saving_interval = args.saving_interval
+
+        # Seed randomness
+        if args.seed == None:
+            seed = int(time.time())
+            random.seed(seed)
+            self.env.seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+            else:
+                torch.manual_seed(seed)
+        else:
+            random.seed(args.seed)
+            self.env.seed(args.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(args.seed)
+            else:
+                torch.manual_seed(args.seed)
+    
+    def save(self):
+        torch.save(self.model.state_dict(), f"{self.save_dir}/model.pt")
+        np.array(self.epochs).tofile(f"{self.save_dir}/epochs.csv", sep=',')
+        np.array(self.timesteps).tofile(f"{self.save_dir}/timesteps.csv", sep=',')
+
+
+def save(save_dir: str, model: nn.Module, epochs: list, timesteps: list):
     """
     Method to save the current model state, the current saved epoch rewards, and
     the current saved timestep rewards.
@@ -64,8 +229,8 @@ def save(save_dir: str, model: nn.Module, epochs: np.ndarray, timesteps: np.ndar
     :param timesteps: The array of timestep data
     """
     torch.save(model, f"{save_dir}/model")
-    epochs.tofile(f"{save_dir}/epochs.csv", sep=',')
-    timesteps.tofile(f"{save_dir}/timesteps.csv", sep=',')
+    np.array(epochs).tofile(f"{save_dir}/epochs.csv", sep=',')
+    np.array(timesteps).tofile(f"{save_dir}/timesteps.csv", sep=',')
 
 
 def train(args: argparse.Namespace):
@@ -109,8 +274,8 @@ def train(args: argparse.Namespace):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.alpha)
     replay_buffer = deque(maxlen=args.replay_buffer_length)
     loss_criterion = nn.MSELoss()
-    epochs = np.array([], dtype=np.int32)
-    timesteps = np.array([], dtype=np.int32)
+    epochs = []
+    timesteps = []
     epsilon = args.init_epsilon
     epsilon_decay_rate = (args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
 
@@ -163,7 +328,7 @@ def train(args: argparse.Namespace):
         # If I want to save more infrequent reward I can use the buffer to batch
         # results across timesteps.
         replay_buffer.append([state, reward, new_state, done])
-        timesteps = np.append(timesteps, reward)
+        timesteps.append(reward)
 
         # Skip epoch increment if episode is not done. If done, record episode
         # score and reset env.
@@ -212,7 +377,7 @@ def train(args: argparse.Namespace):
         if epoch % args.target_network_update == 0:
             target.load_state_dict(model.state_dict())
 
-        epochs = np.append(epochs, episode_score)
+        epochs.append(episode_score)
         print(f"Epoch: {epoch}, score: {episode_score}")
         writer.add_scalar(f'Train-{runid}/Lines cleared per epoch',
                           episode_score, epoch - 1)
