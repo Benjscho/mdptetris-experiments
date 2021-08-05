@@ -97,7 +97,7 @@ def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', sa
     episode_duration = []
     for i in range(nb_games):
         reward, timesteps = lg.play_game()
-        print(f"Episode reward: {reward}, episode duration: timesteps")
+        print(f"Episode reward: {reward}, episode duration: {timesteps}")
         episode_rewards.append(reward)
         episode_duration.append(timesteps)
         lg.reset()
