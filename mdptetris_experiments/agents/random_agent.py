@@ -1,10 +1,12 @@
 import os
+import sys
 import random
 import time
 
 import gym_mdptetris.envs
 import numpy as np
 from gym_mdptetris.envs import board, piece
+from torch.utils.tensorboard import SummaryWriter
 
 
 class RandomLinearGame():
@@ -41,6 +43,16 @@ class RandomLinearGame():
         """
         random.seed(seed_value)
 
+    def reset(self):
+        """
+        Reset the game and return the new board state. 
+
+        return: Current board state
+        """
+        self.board.reset()
+        self.new_piece()
+        self.lines_cleared = 0
+
     def board_step(self):
         """
         Make one random action.
@@ -58,25 +70,54 @@ class RandomLinearGame():
         Method to play an episode of a random strategy game. 
         """
         cleared = 0
+        timesteps = 0
         while self.board.wall_height < self.board_height:
+            timesteps += 1
             cleared += self.board_step()
             self.new_piece()
             if render:
                 print(self.board)
 
-        return cleared
+        return cleared, timesteps
 
 
-def test_performance(seed: int):
+def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', save_dir: str='./'):
     """
-    Method to test random agent performance. 
+    Method to test performance of Dellacherie method.
 
-    :param seed: Seed value for environment. 
+    :param seed: Seed for the environment 
+    :param nb_games: number of episodes to run test for
+    :param log_dir: Directory to log TensorBoard results to
+    :param save_dir: Directory to save episode reward results to
     """
-    pass
+    runid = "Random" + time.strftime('%Y%m%dT%H%M%SZ')
+    writer = SummaryWriter(log_dir, comment=f"Random-{runid}")
+    lg = RandomLinearGame()
+    episode_rewards = []
+    episode_duration = []
+    for i in range(nb_games):
+        reward, timesteps = lg.play_game()
+        print(f"Episode reward: {reward}, episode duration: timesteps")
+        episode_rewards.append(reward)
+        episode_duration.append(timesteps)
+        lg.reset()
+        writer.add_scalar(f"Random-{runid}/Episode reward", reward, i)
+        writer.add_scalar(f"Random-{runid}/Episode duration", timesteps, i)
+
+    np.array(episode_rewards).tofile(f"{save_dir}/Random-rewards-{runid}.csv", sep=',')
+    np.array(episode_duration).tofile(f"{save_dir}/Random-timesteps-{runid}.csv", sep=',')
+    print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
+    print(f"Average duration: {np.mean(np.array(episode_duration))}")
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "test":
+            nb_games = 10000
+            if len(sys.argv) > 2:
+                nb_games = int(sys.argv[2])
+            test_performance(nb_games=nb_games, save_dir="./runs")
+            sys.exit(0)
     lg = RandomLinearGame()
     start = time.time()
     lg.play_game()

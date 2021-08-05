@@ -147,17 +147,19 @@ class LinearGame():
         done = self.board.wall_height > self.board_height
         return reward, done
 
-    def play_game(self, render: bool = False) -> int:
+    def play_game(self, render: bool = False) -> Tuple[int, int]:
         """
         Play a game with the current linear weights of the agent. 
 
         :param render: Indicate if the game should be rendered. 
         """
         cleared = 0
+        timestep = 0
 
         done = False
         while not done:
             reward, done = self.board_step()
+            timestep += 1
             cleared += reward
             self.new_piece()
             if render:
@@ -165,7 +167,7 @@ class LinearGame():
                 print(f"Lines cleared: {cleared:,}")
                 print()
 
-        return cleared
+        return cleared, timestep
 
 
 class LinearGameStandard(LinearGame):
@@ -195,14 +197,20 @@ def test_performance(seed: int=12345, nb_games: int=100, log_dir: str='runs', sa
     writer = SummaryWriter(log_dir, comment=f"Dellacherie-{runid}")
     lg = LinearGame()
     episode_rewards = []
+    episode_duration = []
     for i in range(nb_games):
-        reward = lg.play_game()
+        reward, timesteps = lg.play_game()
         episode_rewards.append(reward)
+        episode_duration.append(timesteps)
+        print(f"Episode reward: {reward}, episode duration: {timesteps}")
         lg.reset()
         writer.add_scalar(f"Dellacherie-{runid}/Episode reward", reward, i)
+        writer.add_scalar(f"Dellacherie-{runid}/Episode duration", timesteps, i)
 
     np.array(episode_rewards).tofile(f"{save_dir}/Dellacherie-rewards-{runid}.csv", sep=',')
+    np.array(episode_duration).tofile(f"{save_dir}/Dellacherie-timesteps-{runid}.csv", sep=',')
     print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
+    print(f"Average duration: {np.mean(np.array(episode_duration))}")
 
 
 if __name__ == "__main__":
@@ -210,9 +218,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if "render" in sys.argv:
             render = True
-        if "test" in sys.argv:
-            print("Testing")
-            test_performance(save_dir='./runs')
+        if sys.argv[1] == "test":
+            nb_games = 100
+            if len(sys.argv) > 2:
+                nb_games = int(sys.argv[2])
+            test_performance(nb_games=nb_games, save_dir="./runs")
             sys.exit(0)
             
     lg = LinearGame()
