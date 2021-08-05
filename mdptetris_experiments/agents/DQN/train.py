@@ -101,6 +101,32 @@ class DQN:
             else:
                 state = new_state
 
+    def test(self, nb_episodes: int=1000):
+        episode_rewards = []
+        episode_duration = []
+        done = False
+        self.epsilon = 0
+        for i in range(nb_episodes):
+            state = self.env.reset()
+            ep_score = 0
+            timesteps = 0
+            while not done:
+                action, new_state = self.get_action_and_new_state(state)
+                reward, done = self.env.step(action)
+                ep_score += reward
+                timesteps += 1
+
+            episode_rewards.append(ep_score)
+            episode_duration.append(timesteps)
+            print(f"Episode reward: {ep_score}, episode duration: {timesteps}")
+            self.writer.add_scalar(f"DQN-{self.runid}/Episode reward", ep_score, i)
+            self.writer.add_scalar(f"DQN-{self.runid}/Episode duration", timesteps, i)
+
+        np.array(episode_rewards).tofile(f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
+        np.array(episode_duration).tofile(f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
+        print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
+        print(f"Average duration: {np.mean(np.array(episode_duration))}")
+
     def update_model(self):
         if len(self.replay_buffer) < self.training_start:
             return
