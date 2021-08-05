@@ -275,35 +275,45 @@ class PPO():
             discounted_reward = discounted_reward * ~done
         return torch.cat(rtg_batch)
 
-    def run_demo(self):
+    def test_performance(self, nb_episodes: int):
         """
-        #TODO: Evaluate current model and watch progress while model trains. 
+        Test model performance
         """
+        self.load()
         env = TetrisFlat(board_height=self.board_height,
                          board_width=self.board_width, seed=self.seed)
 
-        model = PPONN(env.observation_space.shape[0], env.action_space.shape[0]).to(
+        actor = PPONN(env.observation_space.shape[0], env.action_space.shape[0]).to(
             self.device)
-        model.eval()
-        obs = env.reset()
-        timestep = 0
+        actor.load_state_dict(self.actor.state_dict())
+        actor.eval()
+
+        episode_rewards = []
+        episode_durations = [] 
         done = True
-        while True:
-            timestep += 1
-            if done:
-                model.load_state_dict(self.model.state_dict())
+        for i in range(nb_episodes):
+            obs = env.reset()
+            ep_score = 0
+            timesteps = 0
+            while not done:
+                timesteps += 1
+                obs = torch.FloatTensor(obs).to(self.device)
+                probs = actor(obs)
+                dist = functional.softmax(probs)
+                action = torch.argmax(dist).item()
+                obs, reward, done, info = env.step(action)
+                ep_score += reward
+            
+            episode_rewards.append(ep_score)
+            episode_durations.append(timesteps)
+            print(f"Episode reward: {ep_score}, episode duration: {timesteps}")
+            self.writer.add_scalar(f"DQN-{self.runid}/Episode reward", ep_score, i)
+            self.writer.add_scalar(f"DQN-{self.runid}/Episode duration", timesteps, i)
 
-            obs = torch.FloatTensor(obs).to(self.device)
-            probs, value = model(obs)
-            distr = functional.softmax(probs)
-            action = torch.argmax(distr).item()
-            obs, reward, done, info = env.step(action)
-
-            if timestep > self.total_training_steps:
-                done = True
-            if done:
-                timestep = 0
-                obs = env.reset()
+        np.array(episode_rewards).tofile(f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
+        np.array(episode_durations).tofile(f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
+        print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
+        print(f"Average duration: {np.mean(np.array(episode_durations))}")
 
     def evaluate(self, state_b, action_b):
         """
