@@ -56,24 +56,25 @@ state_rep = {
 class DQN:
     def __init__(self, args: argparse.Namespace):
         self.env = state_rep[args.state_rep][1](board_height=args.board_height,
-                                       board_width=args.board_width)
+                                                board_width=args.board_width)
 
         self._init_hyperparams(args)
 
         # Initialise models
         input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
         if args.load_file != None:
-            self.model = torch.load(args.load_file)
+            self.model = torch.load(args.load_file).to(self.device)
         else:
-            self.model = state_rep[args.state_rep][0](input_dims).to(self.device)
+            self.model = state_rep[args.state_rep][0](
+                input_dims).to(self.device)
         self.target = state_rep[args.state_rep][0](input_dims).to(self.device)
         self.target.load_state_dict(self.model.state_dict())
         self.target.eval()
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=args.alpha)
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=args.alpha)
         self.replay_buffer = deque(maxlen=args.replay_buffer_length)
         self.loss_criterion = nn.MSELoss()
-        
 
     def train(self):
         self.epochs = []
@@ -86,7 +87,7 @@ class DQN:
         while self.epoch < self.total_epochs:
             action, new_state = self.get_action_and_new_state(state)
 
-            reward, done = self.env.step(action) 
+            reward, done = self.env.step(action)
             ep_score += reward
             self.timestep += 1
 
@@ -99,7 +100,7 @@ class DQN:
                 state = self.env.reset()
             else:
                 state = new_state
-                
+
     def update_model(self):
         if len(self.replay_buffer) < self.training_start:
             return
@@ -137,11 +138,10 @@ class DQN:
         # Update the target network
         if self.epoch % self.target_network_update == 0:
             self.target.load_state_dict(self.model.state_dict())
-        
+
         if self.epoch % self.saving_interval == 0:
             self.save()
 
-    
     def get_action_and_new_state(self, state):
         action_states = self.env.get_next_states()
 
@@ -160,16 +160,29 @@ class DQN:
 
         new_state = new_states[idx, :]
         return new_actions[idx], new_state
-        
+
+    def load(self):
+        if self.load_file == None:
+            raise ValueError("No load file given")
+
+        if self.load_file[:-3] != ".pt":
+            self.model = torch.load(self.load_file).to(self.device)
+        else:
+            self.model.load_state_dict(
+                torch.load(self.load_file)).to(self.device)
+
+        self.target.load_state_dict(self.model.state_dict())
+        self.target.eval()
 
     def _log(self, ep_score: int):
         self.epochs.append(ep_score)
         print(f"Epoch: {self.epoch}, score: {ep_score}")
         self.writer.add_scalar(f'Train-{self.runid}/Lines cleared per epoch',
-                          ep_score, self.epoch - 1)
+                               ep_score, self.epoch - 1)
         self.writer.add_scalar(f'Train-{self.runid}/Lines cleared over last 100 timesteps',
-                          sum(self.timesteps[-100:]), self.timestep - 1)
-        self.writer.add_scalar(f'Train-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
+                               sum(self.timesteps[-100:]), self.timestep - 1)
+        self.writer.add_scalar(
+            f'Train-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
 
     def _init_hyperparams(self, args):
         self.device = torch.device(
@@ -179,14 +192,16 @@ class DQN:
         self.save_dir = f"{args.save_dir}-{self.runid}"
 
         # Writer for TensorBoard
-        self.writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{self.runid}")
+        self.writer = SummaryWriter(
+            args.log_dir, comment=f"{args.comment}-{self.runid}")
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir)
         with open(f"{self.save_dir}/args.txt", 'w') as f:
             f.write(str(args))
 
         self.epsilon = args.init_epsilon
-        self.epsilon_decay_rate = (args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
+        self.epsilon_decay_rate = (
+            args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
         self.total_epochs = args.epochs
         self.training_start = args.training_start
         self.final_epsilon = args.final_epsilon
@@ -194,6 +209,7 @@ class DQN:
         self.gamma = args.gamma
         self.target_network_update = args.target_network_update
         self.saving_interval = args.saving_interval
+        self.load_file = args.load_file
 
         # Seed randomness
         if args.seed == None:
@@ -211,11 +227,12 @@ class DQN:
                 torch.cuda.manual_seed(args.seed)
             else:
                 torch.manual_seed(args.seed)
-    
+
     def save(self):
         torch.save(self.model.state_dict(), f"{self.save_dir}/model.pt")
         np.array(self.epochs).tofile(f"{self.save_dir}/epochs.csv", sep=',')
-        np.array(self.timesteps).tofile(f"{self.save_dir}/timesteps.csv", sep=',')
+        np.array(self.timesteps).tofile(
+            f"{self.save_dir}/timesteps.csv", sep=',')
 
 
 def save(save_dir: str, model: nn.Module, epochs: list, timesteps: list):
@@ -277,7 +294,8 @@ def train(args: argparse.Namespace):
     epochs = []
     timesteps = []
     epsilon = args.init_epsilon
-    epsilon_decay_rate = (args.init_epsilon - args.final_epsilon) / args.epsilon_decay_period
+    epsilon_decay_rate = (args.init_epsilon -
+                          args.final_epsilon) / args.epsilon_decay_period
 
     # Seed randomness
     if args.seed == None:
@@ -343,7 +361,7 @@ def train(args: argparse.Namespace):
         # Skip training until memory buffer exceeds min timesteps
         if len(replay_buffer) < args.training_start:
             continue
-        
+
         # Epoch increase and decrement epsilon
         epoch += 1
         epsilon -= epsilon_decay_rate
