@@ -17,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
@@ -55,6 +56,14 @@ state_rep = {
 
 class DQN:
     def __init__(self, args: argparse.Namespace):
+        """
+        Class that implements a model-based DQN agent to learn a game of Tetris.
+        The model for the environment is provided in the linear_agent file, 
+        which allows generation of subsequent states, and retrieval of their
+        representation as either the full board, or as a set of features. 
+
+        :param args: A Namespace object containing experiment hyperparameters
+        """
         self.env = state_rep[args.state_rep][1](board_height=args.board_height,
                                                 board_width=args.board_width)
 
@@ -77,6 +86,12 @@ class DQN:
         self.loss_criterion = nn.MSELoss()
 
     def train(self):
+        """
+        Method to train the agent. Iterates through timesteps to gather training
+        data, which is then stored in the buffer. After an episode concludes, makes
+        a training step. Outputs information on the current training status
+        of the agent while training, and saves the trained model at intervals. 
+        """
         self.epochs = []
         self.timesteps = []
         state = self.env.reset().to(self.device)
@@ -85,7 +100,7 @@ class DQN:
         self.timestep = 0
         ep_score = 0
         while self.epoch < self.total_epochs:
-            action, new_state = self.get_action_and_new_state(state)
+            action, new_state = self.get_action_and_new_state()
 
             reward, done = self.env.step(action)
             ep_score += reward
@@ -102,6 +117,14 @@ class DQN:
                 state = new_state
 
     def test(self, nb_episodes: int=1000):
+        """
+        Method to test the performance of a trained agent for specified
+        number of episodes. Outputs performance during testing and saves
+        results to csv files. The agent is loaded from the pre-specified
+        load file passed when the agent is instantiated. 
+
+        :param nb_episodes: Number of episodes to test the trained agent for.
+        """
         self.load()
         episode_rewards = []
         episode_durations = []
@@ -112,7 +135,7 @@ class DQN:
             ep_score = 0
             timesteps = 0
             while not done:
-                action, new_state = self.get_action_and_new_state(state)
+                action, _ = self.get_action_and_new_state()
                 reward, done = self.env.step(action)
                 ep_score += reward
                 timesteps += 1
@@ -129,6 +152,10 @@ class DQN:
         print(f"Average duration: {np.mean(np.array(episode_durations))}")
 
     def update_model(self):
+        """
+        Method to perform one update step on the agent model from the state 
+        transitions saved in the agent memory. 
+        """
         if len(self.replay_buffer) < self.training_start:
             return
 
@@ -169,7 +196,13 @@ class DQN:
         if self.epoch % self.saving_interval == 0:
             self.save()
 
-    def get_action_and_new_state(self, state):
+    def get_action_and_new_state(self):
+        """
+        Get potential subsequent states, determine the state with the highest value 
+        using the current model, and select the state and requisite action with
+        an epsilon greedy strategy. Uses the environment method to generate
+        subsequent stats. 
+        """
         action_states = self.env.get_next_states()
 
         new_actions, new_states = zip(*action_states.items())
@@ -189,6 +222,10 @@ class DQN:
         return new_actions[idx], new_state
 
     def load(self):
+        """
+        Load trained or partially trained model from load file specified
+        in agent parameters. 
+        """
         if self.load_file == None:
             raise ValueError("No load file given")
 
@@ -202,6 +239,11 @@ class DQN:
         self.target.eval()
 
     def _log(self, ep_score: int):
+        """
+        Log information about the current epoch to output and TensorBoard.
+
+        :param ep_score: score from the previous episode.
+        """
         self.epochs.append(ep_score)
         print(f"Epoch: {self.epoch}, score: {ep_score}")
         self.writer.add_scalar(f'Train-{self.runid}/Lines cleared per epoch',
@@ -211,7 +253,12 @@ class DQN:
         self.writer.add_scalar(
             f'Train-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
 
-    def _init_hyperparams(self, args):
+    def _init_hyperparams(self, args: argparse.Namespace):
+        """
+        Initialise agent hyperparameters from the arguments passed in.
+
+        :param args: Namespace containing hyperparameters. 
+        """
         self.device = torch.device(
             f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -256,6 +303,9 @@ class DQN:
                 torch.manual_seed(args.seed)
 
     def save(self):
+        """
+        Method to save the current model and information about the run to disk. 
+        """
         torch.save(self.model.state_dict(), f"{self.save_dir}/model.pt")
         np.array(self.epochs).tofile(f"{self.save_dir}/epochs.csv", sep=',')
         np.array(self.timesteps).tofile(
@@ -441,4 +491,10 @@ def train(args: argparse.Namespace):
 if __name__ == '__main__':
     # Train the model
     args = get_args()
-    train(args)
+
+    if args.test:
+        assert args.load_file != None
+        agent = DQN(args)
+        agent.test()
+    else:
+        train(args)

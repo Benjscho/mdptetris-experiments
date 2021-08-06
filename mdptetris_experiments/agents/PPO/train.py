@@ -278,6 +278,8 @@ class PPO():
     def test_performance(self, nb_episodes: int):
         """
         Test model performance
+
+        :param nb_episodes: number of episodes to test model for. 
         """
         self.load()
         env = TetrisFlat(board_height=self.board_height,
