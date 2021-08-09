@@ -72,11 +72,7 @@ class TD_Lambda:
 
         # Initialise models
         input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
-        if args.load_file != None:
-            self.model = torch.load(args.load_file).to(self.device)
-        else:
-            self.model = state_rep[args.state_rep][0](
-                input_dims).to(self.device)
+        self.model = state_rep[args.state_rep][0](input_dims).to(self.device)
         self.target = state_rep[args.state_rep][0](input_dims).to(self.device)
         self.target.load_state_dict(self.model.state_dict())
         self.target.eval()
