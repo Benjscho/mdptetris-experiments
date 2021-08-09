@@ -20,6 +20,8 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0',
                         help="The GPU to train the agent on")
+    parser.add_argument("--test", action='store_true')
+    parser.add_argument("--render", action='store_true')
     parser.add_argument("--board_height", type=int, default=20,
                         help="Board height for the Tetris environments")
     parser.add_argument("--board_width", type=int, default=10,
@@ -285,7 +287,7 @@ class PPO():
         env = TetrisFlat(board_height=self.board_height,
                          board_width=self.board_width, seed=self.seed)
 
-        actor = PPONN(env.observation_space.shape[0], env.action_space.shape[0]).to(
+        actor = NN1DAction(env.observation_space.shape[0], env.action_space.shape[0]).to(
             self.device)
         actor.load_state_dict(self.actor.state_dict())
         actor.eval()
@@ -304,13 +306,15 @@ class PPO():
                 dist = functional.softmax(probs)
                 action = torch.argmax(dist).item()
                 obs, reward, done, info = env.step(action)
+                if self.render:
+                    env.render()
                 ep_score += reward
             
             episode_rewards.append(ep_score)
             episode_durations.append(timesteps)
             print(f"Episode reward: {ep_score}, episode duration: {timesteps}")
-            self.writer.add_scalar(f"DQN-{self.runid}/Episode reward", ep_score, i)
-            self.writer.add_scalar(f"DQN-{self.runid}/Episode duration", timesteps, i)
+            self.writer.add_scalar(f"PPO-{self.runid}/Episode reward", ep_score, i)
+            self.writer.add_scalar(f"PPO-{self.runid}/Episode duration", timesteps, i)
 
         np.array(episode_rewards).tofile(f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
         np.array(episode_durations).tofile(f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
@@ -403,6 +407,7 @@ class PPO():
         self.load_dir = None
         self.comment = None
         self.seed = None
+        self.render = False
 
         # Replace all defaults with hyperparams in args
         for arg, val in args.items():
@@ -474,6 +479,10 @@ def test(args: dict):
 
 if __name__ == "__main__":
     args = vars(get_args())
-
-    agent = PPO(args)
-    agent.train()
+    if args['test']:
+        assert(args['load_file'] != None)
+        agent = PPO(args)
+        agent.test()
+    else:
+        agent = PPO(args)
+        agent.train()
