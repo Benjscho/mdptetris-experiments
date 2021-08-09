@@ -17,8 +17,8 @@ from torch.utils.tensorboard import SummaryWriter
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--test", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--render", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--test", action='store_true')
+    parser.add_argument("--render", action='store_true')
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
