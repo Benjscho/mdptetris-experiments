@@ -118,6 +118,7 @@ class LinearGame():
         reward = self.board.drop_piece(
             self.pieces[self.current_piece].orientations[action[0]], action[1])
         done = self.board.wall_height > self.board_height
+        self.new_piece()
         self.lines_cleared += reward
         return reward, done
 
