@@ -110,7 +110,8 @@ class DQN:
             self.timesteps.append(reward)
             if done:
                 self.update_model()
-                self._log(ep_score)
+                if self.epoch > 0:
+                    self._log(ep_score)
                 ep_score = 0
                 state = self.env.reset()
             else:
@@ -497,4 +498,5 @@ if __name__ == '__main__':
         agent = DQN(args)
         agent.test()
     else:
-        train(args)
+        agent = DQN(args)
+        agent.train()
