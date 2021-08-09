@@ -236,7 +236,7 @@ class TD_Lambda:
         if self.load_file == None:
             raise ValueError("No load file given")
 
-        if self.load_file[:-3] != ".pt":
+        if self.load_file[-3:] != ".pt":
             self.model = torch.load(self.load_file).to(self.device)
         else:
             self.model.load_state_dict(
