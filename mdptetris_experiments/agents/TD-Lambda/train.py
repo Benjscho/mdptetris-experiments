@@ -25,7 +25,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--training_start", type=int, default=2000,
                         help="Minimum timesteps for training to start.")
     parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--alpha", type=float, default=1e-4,
+    parser.add_argument("--alpha", type=float, default=1e-3,
                         help="Optimiser learning rate.")
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--init_epsilon", type=float, default=1)
