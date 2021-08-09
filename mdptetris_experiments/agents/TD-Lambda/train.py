@@ -136,10 +136,10 @@ class TD_Lambda:
             ep_score = 0
             timesteps = 0
             while not done:
-                action, _ = self.get_action_and_new_state()
-                reward, done = self.env.step(action)
                 if render:
                     self.env.render()
+                action, _ = self.get_action_and_new_state()
+                reward, done = self.env.step(action)
                 if timesteps % 5000 == 0:
                     print(ep_score, timesteps)
                 ep_score += reward
@@ -240,7 +240,7 @@ class TD_Lambda:
             self.model = torch.load(self.load_file).to(self.device)
         else:
             self.model.load_state_dict(
-                torch.load(self.load_file)).to(self.device)
+                torch.load(self.load_file))
 
         self.target.load_state_dict(self.model.state_dict())
         self.target.eval()
@@ -328,7 +328,7 @@ if __name__ == '__main__':
     if args.test:
         assert args.load_file != None
         agent = TD_Lambda(args)
-        agent.test(render=True)
+        agent.test()
     else:
         agent = TD_Lambda(args)
         agent.train()
