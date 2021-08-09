@@ -17,7 +17,8 @@ from torch.utils.tensorboard import SummaryWriter
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--test", type=bool, default=False)
+    parser.add_argument("--test", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--render", action=argparse.BooleanOptionalAction)
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
@@ -103,6 +104,8 @@ class TD_Lambda:
             action, new_state = self.get_action_and_new_state()
 
             reward, done = self.env.step(action)
+            if self.render:
+                self.env.render()
             ep_score += reward
             self.timestep += 1
 
@@ -117,7 +120,7 @@ class TD_Lambda:
             else:
                 state = new_state
 
-    def test(self, nb_episodes: int=1000):
+    def test(self, nb_episodes: int=1000, render: bool=False):
         """
         Method to test the performance of a trained agent for specified
         number of episodes. Outputs performance during testing and saves
@@ -139,6 +142,8 @@ class TD_Lambda:
             while not done:
                 action, _ = self.get_action_and_new_state()
                 reward, done = self.env.step(action)
+                if render:
+                    self.env.render()
                 if timesteps % 5000 == 0:
                     print(ep_score, timesteps)
                 ep_score += reward
@@ -287,6 +292,7 @@ class TD_Lambda:
         self.final_epsilon = args.final_epsilon
         self.batch_size = args.batch_size
         self.gamma = args.gamma
+        self.render = args.render
         self.target_network_update = args.target_network_update
         self.saving_interval = args.saving_interval
         self.load_file = args.load_file
@@ -501,7 +507,7 @@ if __name__ == '__main__':
     if args.test:
         assert args.load_file != None
         agent = TD_Lambda(args)
-        agent.test()
+        agent.test(render=True)
     else:
         agent = TD_Lambda(args)
         agent.train()
