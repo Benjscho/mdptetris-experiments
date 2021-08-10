@@ -47,10 +47,14 @@ Q-Learning | (2,6) | Melax | Heuristic | lines overflowed over 10,000 pieces
 
 Algorithm | Height + width | Pieces | State representation | Reward | RunID
 ---|---|---|---|---|---
-DQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
-DQN | (10, 10) | Standard | Heuristic | lines cleared | 20210715T113035Z
-DQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
-DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210803T070646Z
+TD-Lambda | (10, 10) | Standard - 1 per episode| (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
+TD-Lambda | (10, 10) | Standard - 1 per episode | Heuristic | lines cleared | 20210715T113035Z
+TD-Lambda | (20, 10) | Standard - 1 per episode | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
+TD-Lambda | (20, 10) | Standard - 1 per episode | Heuristic | lines cleared | 20210803T070646Z  
+TD-Lambda | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 
+TD-Lambda | (10, 10) | Standard | Heuristic | lines cleared | 
+TD-Lambda | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 
+TD-Lambda | (20, 10) | Standard | Heuristic | lines cleared | 
 PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
@@ -59,17 +63,20 @@ need to test the trained agents! This DQN is running for ages now. I could be
 getting ace performance... Don't just take the results of the training. Verify
 with tests of the trained models. 
 
+Found the issue with the "DQN" (TD-Lambda) runs, new pieces were only being selected 
+when the episode was reset. I've corrected that now but the performance has been majorly hit. 
+
 ## Test demos to run
 
-Algorithm | Height + width | Pieces | State representation | Reward | RunID
----|---|---|---|---|---
+Algorithm | Height + width | Pieces | State representation | Reward | TrainRunID | TestRunID
+---|---|---|---|---|---|---
 Linear baseline (Random agent) | (20, 10) | Standard | Heuristic | lines cleared
 Linear baseline (Dellacherie weights) | (10, 10) | Standard | Heuristic | lines cleared
-Linear baseline (Dellacherie weights) | (20, 10) | Standard | Heuristic | lines cleared
-DQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
-DQN | (10, 10) | Standard | Heuristic | lines cleared | 20210715T113035Z
-DQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
-DQN | (20, 10) | Standard | Heuristic | lines cleared | 20210803T070646Z
+Linear baseline (Dellacherie weights) | (20, 10) | Standard | Heuristic | lines cleared | | 20210805T084801Z
+TD-Lambda | (10, 10) | Standard - 1 per episode| (Board inc. Piece 1D) | lines cleared | 20210715T112914Z
+TD-Lambda | (10, 10) | Standard - 1 per episode | Heuristic | lines cleared | 20210715T113035Z
+TD-Lambda | (20, 10) | Standard - 1 per episode | (Board inc. Piece 1D) | lines cleared | 20210713T101844Z
+TD-Lambda | (20, 10) | Standard - 1 per episode | Heuristic | lines cleared | 20210803T070646Z | 
 PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
