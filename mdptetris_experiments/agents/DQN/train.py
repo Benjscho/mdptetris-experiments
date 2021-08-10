@@ -1,4 +1,7 @@
 import argparse
+
+from torch.nn import functional
+from mdptetris_experiments.agents.action_networks import NN1DAction
 import os
 import random
 import time
@@ -7,9 +10,8 @@ from collections import deque
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
+from gym_mdptetris.envs.tetris import TetrisFlat
 from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic
-from mdptetris_experiments.agents.linear_agent import (LinearGame,
-                                                       LinearGameStandard)
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
@@ -17,7 +19,8 @@ from torch.utils.tensorboard import SummaryWriter
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--test", type=bool, default=False)
+    parser.add_argument("--test", action='store_true')
+    parser.add_argument("--render", action='store_true')
     parser.add_argument("--board_height", type=int, default=20)
     parser.add_argument("--board_width", type=int, default=10)
     parser.add_argument("--replay_buffer_length", type=int, default=20000)
@@ -48,11 +51,6 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-state_rep = {
-    "heuristic": [NNHeuristic, LinearGame],
-    "1D": [NN1D, LinearGameStandard]
-}
-
 
 class DQN:
     def __init__(self, args: argparse.Namespace):
@@ -64,19 +62,16 @@ class DQN:
 
         :param args: A Namespace object containing experiment hyperparameters
         """
-        self.env = state_rep[args.state_rep][1](board_height=args.board_height,
-                                                board_width=args.board_width)
+        self.env = TetrisFlat(board_height=args.board_height,
+                              board_width=args.board_width, seed=args.seed)
 
         self._init_hyperparams(args)
 
+        input_dims = self.env.observation_space.shape[0]
+        output_dims = self.env.action_space.shape[0]
         # Initialise models
-        input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
-        if args.load_file != None:
-            self.model = torch.load(args.load_file).to(self.device)
-        else:
-            self.model = state_rep[args.state_rep][0](
-                input_dims).to(self.device)
-        self.target = state_rep[args.state_rep][0](input_dims).to(self.device)
+        self.model = NN1DAction(input_dims, output_dims).to(self.device)
+        self.target = NN1DAction(input_dims, output_dims).to(self.device)
         self.target.load_state_dict(self.model.state_dict())
         self.target.eval()
 
@@ -100,22 +95,23 @@ class DQN:
         self.timestep = 0
         ep_score = 0
         while self.epoch < self.total_epochs:
-            action, new_state = self.get_action_and_new_state()
+            action = self.get_action(state)
 
-            reward, done = self.env.step(action)
+            new_state, reward, done, info = self.env.step(action)
+
             ep_score += reward
             self.timestep += 1
 
-            self.replay_buffer.append([state, reward, new_state, done])
+            self.replay_buffer.append([state, action, reward, new_state, done])
             self.timesteps.append(reward)
             if done:
                 self.update_model()
                 if self.epoch > 0:
                     self._log(ep_score)
                 ep_score = 0
-                state = self.env.reset()
+                state = self.env.reset().to(self.device)
             else:
-                state = new_state
+                state = new_state.to(self.device)
 
     def test(self, nb_episodes: int=1000):
         """
@@ -168,7 +164,7 @@ class DQN:
         batch = random.sample(self.replay_buffer, min(
             len(self.replay_buffer), self.batch_size))
 
-        state_b, reward_b, new_state_b, done_b = zip(*batch)
+        state_b, action_b, reward_b, new_state_b, done_b = zip(*batch)
         state_b = torch.stack(state_b).to(self.device)
         reward_b = torch.from_numpy(
             np.array(reward_b, dtype=np.float32)[:, None]).to(self.device)
@@ -197,30 +193,16 @@ class DQN:
         if self.epoch % self.saving_interval == 0:
             self.save()
 
-    def get_action_and_new_state(self):
+    def get_action(self, state: torch.Tensor):
         """
-        Get potential subsequent states, determine the state with the highest value 
-        using the current model, and select the state and requisite action with
-        an epsilon greedy strategy. Uses the environment method to generate
-        subsequent stats. 
+        Get action. 
+
+        :param state: Current state.
         """
-        action_states = self.env.get_next_states()
-
-        new_actions, new_states = zip(*action_states.items())
-        new_states = torch.stack(new_states).to(self.device)
-
-        self.model.eval()
-        with torch.no_grad():
-            predictions = self.model(new_states)[:, 0]
-        self.model.train()
-
-        if random.random() <= self.epsilon:
-            idx = random.randint(0, len(new_actions) - 1)
-        else:
-            idx = torch.argmax(predictions).item()
-
-        new_state = new_states[idx, :]
-        return new_actions[idx], new_state
+        probs = self.model(state)
+        dist = functional.softmax(probs)
+        action = torch.argmax(dist).item()
+        return action
 
     def load(self):
         """
@@ -312,181 +294,6 @@ class DQN:
         np.array(self.timesteps).tofile(
             f"{self.save_dir}/timesteps.csv", sep=',')
 
-
-def save(save_dir: str, model: nn.Module, epochs: list, timesteps: list):
-    """
-    Method to save the current model state, the current saved epoch rewards, and
-    the current saved timestep rewards.
-
-    :param save_dir: The directory to save the results in, typically using a runID
-    :param model: The current model of the run
-    :param epochs: The array of epoch data
-    :param timesteps: The array of timestep data
-    """
-    torch.save(model, f"{save_dir}/model")
-    np.array(epochs).tofile(f"{save_dir}/epochs.csv", sep=',')
-    np.array(timesteps).tofile(f"{save_dir}/timesteps.csv", sep=',')
-
-
-def train(args: argparse.Namespace):
-    """
-    Method that initialises a network with a set of arguments and trains
-    it on a given Tetris environment.
-
-    Attribution: This code implements the DQN algorithm in Mnih, V.,
-    Kavukcuoglu, K., Silver, D. et al. Human-level control through deep
-    reinforcement learning. Nature 518, 529–533 (2015).  
-    
-    :param args: A namespace containing the hyperparameters and arguments
-        for training the model.
-    """
-    # Set up environment
-    env = state_rep[args.state_rep][1](board_height=args.board_height,
-                                       board_width=args.board_width)
-
-    device = torch.device(
-        f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-
-    runid = time.strftime('%Y%m%dT%H%M%SZ')
-    save_dir = f"{args.save_dir}-{runid}"
-    # Writer for TensorBoard
-    writer = SummaryWriter(args.log_dir, comment=f"{args.comment}-{runid}")
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
-    with open(f"{save_dir}/args.txt", 'w') as f:
-        f.write(str(args))
-
-    # Set up model, network, optimizer, and memory buffer
-    input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
-    if args.load_file != None:
-        model = torch.load(args.load_file)
-    else:
-        model = state_rep[args.state_rep][0](input_dims).to(device)
-    target = state_rep[args.state_rep][0](input_dims).to(device)
-    target.load_state_dict(model.state_dict())
-    target.eval()
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.alpha)
-    replay_buffer = deque(maxlen=args.replay_buffer_length)
-    loss_criterion = nn.MSELoss()
-    epochs = []
-    timesteps = []
-    epsilon = args.init_epsilon
-    epsilon_decay_rate = (args.init_epsilon -
-                          args.final_epsilon) / args.epsilon_decay_period
-
-    # Seed randomness
-    if args.seed == None:
-        seed = int(time.time())
-        random.seed(seed)
-        env.seed(seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-        else:
-            torch.manual_seed(seed)
-    else:
-        random.seed(args.seed)
-        env.seed(args.seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(args.seed)
-        else:
-            torch.manual_seed(args.seed)
-
-    state = env.reset().to(device)
-
-    epoch = 0
-    timestep = 0
-    temp_ep_score = 0
-    while epoch < args.epochs:
-        action_states = env.get_next_states()
-        new_actions, new_states = zip(*action_states.items())
-        new_states = torch.stack(new_states).to(device)
-
-        # Predict values of next states
-        model.eval()
-        with torch.no_grad():
-            predictions = model(new_states)[:, 0]
-        model.train()
-
-        # Select next state with epsilon greedy strategy
-        if random.random() <= epsilon:
-            idx = random.randint(0, len(new_actions) - 1)
-        else:
-            idx = torch.argmax(predictions).item()
-
-        new_state = new_states[idx, :].to(device)
-        action = new_actions[idx]
-        reward, done = env.step(action)
-        temp_ep_score += reward
-        timestep += 1
-
-        # Append step to buffer and save reward
-        # If I want to save more infrequent reward I can use the buffer to batch
-        # results across timesteps.
-        replay_buffer.append([state, reward, new_state, done])
-        timesteps.append(reward)
-
-        # Skip epoch increment if episode is not done. If done, record episode
-        # score and reset env.
-        if done:
-            episode_score = temp_ep_score
-            temp_ep_score = 0
-            state = env.reset().to(device)
-        else:
-            state = new_state
-            continue
-
-        # Skip training until memory buffer exceeds min timesteps
-        if len(replay_buffer) < args.training_start:
-            continue
-
-        # Epoch increase and decrement epsilon
-        epoch += 1
-        epsilon -= epsilon_decay_rate
-        epsilon = max(epsilon, args.final_epsilon)
-
-        batch = random.sample(replay_buffer, min(
-            len(replay_buffer), args.batch_size))
-        state_b, reward_b, new_state_b, done_b = zip(*batch)
-        state_b = torch.stack(state_b).to(device)
-        reward_b = torch.from_numpy(
-            np.array(reward_b, dtype=np.float32)[:, None]).to(device)
-        new_state_b = torch.stack(new_state_b).to(device)
-
-        # Use model to judge state values, train prediction against target network
-        q_vals = model(state_b).to(device)
-        with torch.no_grad():
-            next_predictions = target(new_state_b)
-
-        y_b = []
-        for reward, done, prediction in zip(reward_b, done_b, next_predictions):
-            y_b.append(reward if done else reward + args.gamma*prediction)
-        y_b = torch.cat(y_b).to(device)
-
-        # Calculate loss and train network
-        optimizer.zero_grad()
-        loss = loss_criterion(q_vals, y_b)
-        loss.backward()
-        optimizer.step()
-
-        # Update the target network
-        if epoch % args.target_network_update == 0:
-            target.load_state_dict(model.state_dict())
-
-        epochs.append(episode_score)
-        print(f"Epoch: {epoch}, score: {episode_score}")
-        writer.add_scalar(f'Train-{runid}/Lines cleared per epoch',
-                          episode_score, epoch - 1)
-        writer.add_scalar(f'Train-{runid}/Lines cleared over last 100 timesteps',
-                          sum(timesteps[-100:]), timestep - 1)
-        writer.add_scalar(f'Train-{runid}/Epsilon vlaue', epsilon, epoch - 1)
-
-        # On interval, save model and current results to csv
-        if epoch % args.saving_interval == 0:
-            save(save_dir, model, epochs, timesteps)
-
-    # Save on completion
-    save(save_dir, model, epochs, timesteps)
 
 
 if __name__ == '__main__':
