@@ -116,7 +116,7 @@ class TD_Lambda:
             else:
                 state = new_state.to(self.device)
 
-    def test(self, nb_episodes: int=1000, render: bool=False):
+    def test(self, nb_episodes: int=1000):
         """
         Method to test the performance of a trained agent for specified
         number of episodes. Outputs performance during testing and saves
@@ -136,12 +136,10 @@ class TD_Lambda:
             ep_score = 0
             timesteps = 0
             while not done:
-                if render:
+                if self.render:
                     self.env.render()
                 action, _ = self.get_action_and_new_state()
                 reward, done = self.env.step(action)
-                if timesteps % 5000 == 0:
-                    print(ep_score, timesteps)
                 ep_score += reward
                 timesteps += 1
 
