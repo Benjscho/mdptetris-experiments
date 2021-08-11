@@ -72,7 +72,7 @@ class TD_Lambda:
         self._init_hyperparams(args)
 
         # Initialise models
-        input_dims = 6 if args.state_rep == "heuristic" else args.board_height * args.board_width
+        input_dims = args.board_height * args.board_width if args.state_rep != "heuristic" else 6
         self.model = state_rep[args.state_rep][0](input_dims).to(self.device)
         self.target = state_rep[args.state_rep][0](input_dims).to(self.device)
         self.target.load_state_dict(self.model.state_dict())
