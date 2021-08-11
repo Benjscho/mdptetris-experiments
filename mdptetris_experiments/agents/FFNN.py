@@ -24,6 +24,28 @@ class NNHeuristic(nn.Module):
         x = self.conv3(x)
         return x
 
+class NNHeuristicSimple(nn.Module):
+    """
+    Define a neural network for use in DQN with a heuristic input. 
+    """
+
+    def __init__(self, input_dims: int=6):
+        super(NNHeuristicSimple, self).__init__()
+        self.conv1 = nn.Sequential(nn.Linear(input_dims, 32))
+        self.conv2 = nn.Sequential(nn.Linear(32, 32))
+        self.conv3 = nn.Sequential(nn.Linear(32, 1))
+
+    def _initialise_weights(self):
+        for mod in self.modules():
+            if isinstance(mod, nn.Linear):
+                nn.init.xavier_uniform_(mod.bias, 0)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
+        return x
+
 class NN1D(nn.Module):
     def __init__(self, input_dims=200):
         super(NN1D, self).__init__()

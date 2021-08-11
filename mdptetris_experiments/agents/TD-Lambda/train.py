@@ -7,7 +7,7 @@ from collections import deque
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
-from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic
+from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic, NNHeuristicSimple
 from mdptetris_experiments.agents.linear_agent import (LinearGame,
                                                        LinearGameStandard)
 from torch import nn
@@ -51,6 +51,7 @@ def get_args() -> argparse.Namespace:
 
 state_rep = {
     "heuristic": [NNHeuristic, LinearGame],
+    "heuristic-simplenet": [NNHeuristicSimple, LinearGame],
     "1D": [NN1D, LinearGameStandard]
 }
 
