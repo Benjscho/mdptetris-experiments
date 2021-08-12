@@ -1,12 +1,16 @@
-from os import read
-import sys
 import csv
+import sys
+from argparse import ArgumentParser, Namespace
+
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
-from argparse import ArgumentParser, Namespace # Namespace required for namespace parsing
+
 from run_arg_parser import get_parser
 
+
 # graph reward against timesteps
-def reward_over_time(reward, ):
+def reward_over_time(reward):
     timesteps = [i for i in range(len(reward))]
     plt.plot(timesteps, reward)
     plt.show()
@@ -33,10 +37,24 @@ def analyse_MBDQN(run_dirs):
     run_timesteps = {}
     run_epochs = {}
 
+    len_t = 0 
+    len_e = 0 
+
     for dir in run_dirs: 
         run_timesteps[dir] = read_result_csv(dir + "/timesteps.csv")
         run_epochs[dir] = read_result_csv(dir + "/epochs.csv")
-        
+        len_t = max(len_t, len(run_timesteps[dir]))
+        len_e = max(len_e, len(run_epochs[dir]))
+    
+    for dir in run_dirs:
+        df = pd.DataFrame(run_epochs[dir])
+        df = df.astype(float)
+        print()
+        df = df.groupby(np.arange(len(df))//100).mean()
+        print(df)
+        plt.plot(df.ewm(alpha=(1 - 0.9)).mean())
+    plt.show()
+    
 
 def analyse_PPO(run_dirs): 
     pass
