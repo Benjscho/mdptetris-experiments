@@ -7,7 +7,8 @@ from collections import deque
 import numpy as np
 import torch
 from gym_mdptetris.envs import board, piece, tetris
-from mdptetris_experiments.agents.FFNN import NN1D, NNHeuristic, NNHeuristicSimple
+from mdptetris_experiments.agents.FFNN import (NN1D, NNHeuristic,
+                                               NNHeuristicSimple)
 from mdptetris_experiments.agents.linear_agent import (LinearGame,
                                                        LinearGameStandard)
 from torch import nn
@@ -49,6 +50,7 @@ def get_args() -> argparse.Namespace:
     return args
 
 
+# Define state representations and respective NN architectures
 state_rep = {
     "heuristic": [NNHeuristic, LinearGame],
     "heuristic-simplenet": [NNHeuristicSimple, LinearGame],
@@ -63,6 +65,8 @@ class MBDQN:
         Tetris.  The model for the environment is provided in the linear_agent
         file, which allows generation of subsequent states, and retrieval of
         their representation as either the full board, or as a set of features. 
+
+        Attribution: Approach inspired by Viet Nguyen's: https://github.com/uvipen/Tetris-deep-Q-learning-pytorch
         
         :param args: A Namespace object containing experiment hyperparameters
         """
@@ -108,6 +112,8 @@ class MBDQN:
 
             self.replay_buffer.append([state, reward, new_state, done])
             self.timesteps.append(reward)
+
+            # Train the model if the episode has concluded and update log
             if done:
                 self.update_model()
                 if self.epoch > 0:
@@ -117,7 +123,7 @@ class MBDQN:
             else:
                 state = new_state.to(self.device)
 
-    def test(self, nb_episodes: int=1000):
+    def test(self, nb_episodes: int = 1000):
         """
         Method to test the performance of a trained agent for specified
         number of episodes. Outputs performance during testing and saves
@@ -146,12 +152,17 @@ class MBDQN:
 
             episode_rewards.append(ep_score)
             episode_durations.append(timesteps)
-            print(f"Episode: {i}, Episode reward: {ep_score}, Episode duration: {timesteps}")
-            self.writer.add_scalar(f"DQN-{self.runid}/Episode reward", ep_score, i)
-            self.writer.add_scalar(f"DQN-{self.runid}/Episode duration", timesteps, i)
+            print(
+                f"Episode: {i}, Episode reward: {ep_score}, Episode duration: {timesteps}")
+            self.writer.add_scalar(
+                f"DQN-{self.runid}/Episode reward", ep_score, i)
+            self.writer.add_scalar(
+                f"DQN-{self.runid}/Episode duration", timesteps, i)
 
-        np.array(episode_rewards).tofile(f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
-        np.array(episode_durations).tofile(f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
+        np.array(episode_rewards).tofile(
+            f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
+        np.array(episode_durations).tofile(
+            f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
         print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
         print(f"Average duration: {np.mean(np.array(episode_durations))}")
 
@@ -177,7 +188,7 @@ class MBDQN:
             np.array(reward_b, dtype=np.float32)[:, None]).to(self.device)
         new_state_b = torch.stack(new_state_b).to(self.device)
 
-        # Use model to judge state values, train prediction against target network
+        # Use model to predict state values, train prediction against target network
         q_vals = self.model(state_b).to(self.device)
         with torch.no_grad():
             next_predictions = self.target(new_state_b)
@@ -317,7 +328,6 @@ class MBDQN:
         np.array(self.epochs).tofile(f"{self.save_dir}/epochs.csv", sep=',')
         np.array(self.timesteps).tofile(
             f"{self.save_dir}/timesteps.csv", sep=',')
-
 
 
 if __name__ == '__main__':

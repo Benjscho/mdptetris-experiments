@@ -146,6 +146,9 @@ class PPO():
         """
         Class for multiprocessing PPO. 
 
+        Attribution: This implementation is based on OpenAI's Spinning Up 
+        documentation: https://spinningup.openai.com/en/latest/algorithms/ppo.html
+
         :param args: dictionary of hyperparameters 
         """
         # Initialise hyperparams using args
@@ -175,7 +178,9 @@ class PPO():
 
     def train(self):
         """
-        Train the agent networks while the epochs and timesteps are less than the max values. 
+        Train the agent networks while the epochs and timesteps are less than
+        the max values.  Generates rollouts using multiple environments, and
+        then uses batches to calculate update values for gradient ascent.
         """
         print("training")
         [connection.send(("reset", None))
@@ -277,9 +282,9 @@ class PPO():
             discounted_reward = discounted_reward * ~done
         return torch.cat(rtg_batch)
 
-    def test_performance(self, nb_episodes: int):
+    def test_performance(self, nb_episodes: int = 1000):
         """
-        Test model performance
+        Test trained model performance across a number of episodes
 
         :param nb_episodes: number of episodes to test model for. 
         """
@@ -293,7 +298,7 @@ class PPO():
         actor.eval()
 
         episode_rewards = []
-        episode_durations = [] 
+        episode_durations = []
         done = True
         for i in range(nb_episodes):
             obs = env.reset()
@@ -309,19 +314,23 @@ class PPO():
                 if self.render:
                     env.render()
                 ep_score += reward
-            
+
             episode_rewards.append(ep_score)
             episode_durations.append(timesteps)
             print(f"Episode reward: {ep_score}, episode duration: {timesteps}")
-            self.writer.add_scalar(f"PPO-{self.runid}/Episode reward", ep_score, i)
-            self.writer.add_scalar(f"PPO-{self.runid}/Episode duration", timesteps, i)
+            self.writer.add_scalar(
+                f"PPO-{self.runid}/Episode reward", ep_score, i)
+            self.writer.add_scalar(
+                f"PPO-{self.runid}/Episode duration", timesteps, i)
 
-        np.array(episode_rewards).tofile(f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
-        np.array(episode_durations).tofile(f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
+        np.array(episode_rewards).tofile(
+            f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
+        np.array(episode_durations).tofile(
+            f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
         print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
         print(f"Average duration: {np.mean(np.array(episode_durations))}")
 
-    def evaluate(self, state_b, action_b):
+    def evaluate(self, state_b: torch.Tensor, action_b: torch.Tensor):
         """
         Estimate observation values and log probabilities of actions. 
 
@@ -416,7 +425,7 @@ class PPO():
             else:
                 exec(f'self.{arg} = {val}')
 
-        # Set device 
+        # Set device
         self.device = torch.device(
             f"cuda:{self.gpu}" if torch.cuda.is_available() else "cpu")
 
