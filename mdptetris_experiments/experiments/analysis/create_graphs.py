@@ -1,7 +1,8 @@
+from os import read
 import sys
-from typing import runtime_checkable
+import csv
 from matplotlib import pyplot as plt
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace # Namespace required for namespace parsing
 from run_arg_parser import get_parser
 
 # graph reward against timesteps
@@ -21,18 +22,28 @@ def get_run_args(run_dirs):
         run_args[dir] = args
     return run_args
 
+def read_result_csv(file_path):
+    with open(file_path, mode='r') as file:
+        result = csv.reader(file) 
+        t = [l for l in result]
+    return t[0]
+
 def analyse_MBDQN(run_dirs): 
     run_args = get_run_args(run_dirs)
+    run_timesteps = {}
+    run_epochs = {}
+
     for dir in run_dirs: 
-        runinfo = dir 
-        timesteps = runinfo + "timesteps.csv"
-        epochs = runinfo + "epochs.csv"
-    pass
+        run_timesteps[dir] = read_result_csv(dir + "/timesteps.csv")
+        run_epochs[dir] = read_result_csv(dir + "/epochs.csv")
+        
 
 def analyse_PPO(run_dirs): 
     pass
 
 def main(run_dirs):
+
+    analyse_MBDQN(run_dirs)
     pass
 
 if __name__=='__main__':
