@@ -53,8 +53,8 @@ MBDQN | (20, 10) | Standard - 1 per episode | (Board inc. Piece 1D) | lines clea
 MBDQN | (20, 10) | Standard - 1 per episode | Heuristic | lines cleared | 20210803T070646Z  
 MBDQN | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 
 MBDQN | (10, 10) | Standard | Heuristic | lines cleared | 
-MBDQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 
-MBDQN | (20, 10) | Standard | Heuristic | lines cleared | 
+MBDQN | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210809T161605Z
+MBDQN | (20, 10) | Standard | Heuristic | lines cleared | 20210811T071836Z
 PPO | (20, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210730T093417Z
 PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205340Z
 
