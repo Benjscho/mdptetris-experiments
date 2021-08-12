@@ -56,14 +56,14 @@ state_rep = {
 }
 
 
-class TD_Lambda:
+class MBDQN:
     def __init__(self, args: argparse.Namespace):
         """
-        Class that implements a model-based DQN agent to learn a game of Tetris.
-        The model for the environment is provided in the linear_agent file, 
-        which allows generation of subsequent states, and retrieval of their
-        representation as either the full board, or as a set of features. 
-
+        Class that implements a model-based DQN agent (MBDQN) to learn a game of
+        Tetris.  The model for the environment is provided in the linear_agent
+        file, which allows generation of subsequent states, and retrieval of
+        their representation as either the full board, or as a set of features. 
+        
         :param args: A Namespace object containing experiment hyperparameters
         """
         self.env = state_rep[args.state_rep][1](board_height=args.board_height,
@@ -326,8 +326,8 @@ if __name__ == '__main__':
 
     if args.test:
         assert args.load_file != None
-        agent = TD_Lambda(args)
+        agent = MBDQN(args)
         agent.test()
     else:
-        agent = TD_Lambda(args)
+        agent = MBDQN(args)
         agent.train()
