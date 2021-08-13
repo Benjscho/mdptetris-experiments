@@ -50,11 +50,16 @@ def analyse_MBDQN(run_dirs):
         df = pd.DataFrame(run_epochs[dir])
         df = df.astype(float)
         print()
+
+        # Grouping results: https://stackoverflow.com/a/36810658/14354978 
         df = df.groupby(np.arange(len(df))//100).mean()
         print(df)
         plt.plot(df.ewm(alpha=(1 - 0.9)).mean())
     plt.show()
-    
+
+def smooth_data(df: pd.DataFrame, alpha: float=0.9, grouping: int=100):
+    tdf = df.groupby(np.arange(len(df))//100).mean()
+    return tdf.ewm(alpha=(1 - 0.9)).mean()
 
 def analyse_PPO(run_dirs): 
     pass
