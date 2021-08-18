@@ -324,9 +324,9 @@ class PPO():
                 f"PPO-{self.runid}/Episode duration", timesteps, i)
 
         np.array(episode_rewards).tofile(
-            f"{self.save_dir}/DQN-test-rewards-{self.runid}.csv", sep=',')
+            f"{self.save_dir}/PPO-test-rewards-{self.runid}.csv", sep=',')
         np.array(episode_durations).tofile(
-            f"{self.save_dir}/DQN-test-durations-{self.runid}.csv", sep=',')
+            f"{self.save_dir}/PPO-test-durations-{self.runid}.csv", sep=',')
         print(f"Average rewards: {np.mean(np.array(episode_rewards))}")
         print(f"Average duration: {np.mean(np.array(episode_durations))}")
 
