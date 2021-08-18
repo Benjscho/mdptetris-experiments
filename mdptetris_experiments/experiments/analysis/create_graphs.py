@@ -59,6 +59,13 @@ def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str):
         run_timesteps[dir] = read_result_csv(dir + "/timesteps.csv")
         run_epochs[dir] = read_result_csv(dir + "/epochs.csv")
 
+    for dir in run_dirs:
+        print()
+        print(f"{save_file} Hyperparameters:")
+        for key in run_args[dir].__dict__:
+            if run_args[dir].__dict__[key]:
+                print(f"{key} & {run_args[dir].__dict__[key]}")
+
     plt.figure(save_file)
     plt.title(title)
     grouping = 20
@@ -95,6 +102,14 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
 
     for dir in run_dirs:
         timesteps[dir] = pd.read_csv(dir + "/rewards.csv")
+
+    # Print hyperparams
+    for dir in run_dirs:
+        print()
+        print(f"{save_file} Hyperparameters:")
+        for key in run_args[dir]:
+            if run_args[dir][key]:
+                print(f"{key} & {run_args[dir][key]}")
 
     plt.figure(save_file)
     plt.title(title)
