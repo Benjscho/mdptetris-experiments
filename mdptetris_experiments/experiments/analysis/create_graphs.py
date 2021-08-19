@@ -64,7 +64,8 @@ def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str):
         print(f"{save_file} Hyperparameters:")
         for key in run_args[dir].__dict__:
             if run_args[dir].__dict__[key]:
-                print(f"{key} & {run_args[dir].__dict__[key]}")
+                print(f"{key} & {run_args[dir].__dict__[key]} \\\\".capitalize().replace(
+                    "_", " "))
 
     plt.figure(save_file)
     plt.title(title)
@@ -109,7 +110,8 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
         print(f"{save_file} Hyperparameters:")
         for key in run_args[dir]:
             if run_args[dir][key]:
-                print(f"{key} & {run_args[dir][key]}")
+                print(
+                    f"{key} & {run_args[dir][key]} \\\\".capitalize().replace("_", " "))
 
     plt.figure(save_file)
     plt.title(title)
