@@ -37,3 +37,20 @@ cleared = agent.play_game()
 print(f"{cleared:,} rows cleared")
 ```
 
+
+### MBDQN 
+
+The model-based DQN agent utilises a similar approach to the linear agent,
+generating all of the possible subsequent states before using a neural network
+to evaluate the value of each board state. This agent performs at a poor level 
+but demonstrates learning after 3000 epochs.
+
+To train the agent with default settings simply run:
+```bash
+python mdptetris_experiments/agents/MBDQN/train.py
+```
+
+A trained agent can then be tested by providing it with a model load file:
+```bash
+python mdptetris_experiments/agents/MBDQN/train.py --test --render --load_file <LOAD_FILE_PATH>
+```
