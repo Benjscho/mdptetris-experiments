@@ -25,14 +25,14 @@ MBDQN_1PIECE_RUNS = [ROOT_RUN_DIR +
 PPO_RUNS = [ROOT_RUN_DIR + i for i in ["20210730T093417Z", "20210802T205340Z"]]
 
 
-# graph reward against timesteps
-def reward_over_time(reward):
-    timesteps = [i for i in range(len(reward))]
-    plt.plot(timesteps, reward)
-    plt.show()
+def get_run_args(run_dirs: List[str]) -> dict:
+    """
+    Method to parse the run arguments saved in MBDQN run directories. 
 
+    :param run_dirs: List of directories to parse run args for
 
-def get_run_args(run_dirs: List[str]):
+    :return: Returns a dictionary of run arguments 
+    """
     parser = get_parser()
     run_args = {}
     for dir in run_dirs:
@@ -43,7 +43,14 @@ def get_run_args(run_dirs: List[str]):
     return run_args
 
 
-def read_result_csv(file_path):
+def read_result_csv(file_path: str) -> List:
+    """
+    Method to read in the first line of a csv to an array. 
+    
+    :param file_path: Path to csv file. 
+
+    :return: Returns array containing the first line of the csv
+    """
     with open(file_path, mode='r') as file:
         result = csv.reader(file)
         t = [l for l in result]
@@ -51,6 +58,14 @@ def read_result_csv(file_path):
 
 
 def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str):
+    """
+    Method to take in a list of MBDQN run directories, iterate through them
+    to collect run information, and plot the resulting data. 
+
+    :param run_dirs: list of run result directories
+    :param title: Title for the resulting graph
+    :param save_file: Name for the save file
+    """
     run_args = get_run_args(run_dirs)
     run_timesteps = {}
     run_epochs = {}
@@ -92,6 +107,14 @@ def smooth_data(df: pd.DataFrame, alpha: float = 0.9, grouping: int = 100):
 
 
 def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
+    """
+    Method to take in a list of PPO run directories, iterate through them
+    to collect run information, and plot the resulting data. 
+
+    :param run_dirs: list of run result directories
+    :param title: Title for the resulting graph
+    :param save_file: Name for the save file
+    """
     run_args = {}
     for dir in run_dirs:
         with open(dir + "/args.txt") as f:
@@ -127,6 +150,10 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
 
 
 def main():
+    """
+    Define main method to analyse PPO, and MBDQN runs specified in the global
+    vars above. 
+    """
     analyse_PPO(PPO_RUNS, "PPO Learning rate", "ppo")
     analyse_MBDQN(MBDQN_1PIECE_RUNS,
                   "(a) MBDQN learning rate for single piece episodes", "mbdqn-1piece")
@@ -135,5 +162,4 @@ def main():
 
 
 if __name__ == '__main__':
-    run_dirs = sys.argv[1:]
     main()
