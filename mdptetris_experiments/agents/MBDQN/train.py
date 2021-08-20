@@ -320,7 +320,7 @@ class MBDQN:
         self.target_network_update = args.target_network_update
         self.saving_interval = args.saving_interval
         self.load_file = args.load_file
-        self.one_piece = args.one_piece
+        self.one_piece = not args.one_piece
 
         # Seed randomness
         if args.seed == None:
