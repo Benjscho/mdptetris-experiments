@@ -17,33 +17,51 @@ from torch.utils.tensorboard import SummaryWriter
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--test", action='store_true')
-    parser.add_argument("--render", action='store_true')
-    parser.add_argument("--board_height", type=int, default=20)
-    parser.add_argument("--board_width", type=int, default=10)
-    parser.add_argument("--replay_buffer_length", type=int, default=20000)
+    parser.add_argument("--gpu", type=str, default='0',
+                        help="Select the GPU to run the model on.")
+    parser.add_argument("--test", action='store_true',
+                        help="Test a trained model")
+    parser.add_argument("--render", action='store_true',
+                        help="Render the environment")
+    parser.add_argument("--one_piece", action='store_true',
+                        help="Only train or test model on one piece per episode.")
+    parser.add_argument("--board_height", type=int,
+                        default=20, help="Height for the Tetris board")
+    parser.add_argument("--board_width", type=int, default=10,
+                        help="Width for the Tetris board")
+    parser.add_argument("--replay_buffer_length", type=int, default=20000,
+                        help="Number of timesteps to store in the replay memory buffer")
     parser.add_argument("--training_start", type=int, default=2000,
                         help="Minimum timesteps for training to start.")
-    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_size", type=int, default=512,
+                        help="Timestep batch size for training the model.")
     parser.add_argument("--alpha", type=float, default=1e-3,
-                        help="Optimiser learning rate.")
-    parser.add_argument("--gamma", type=float, default=0.99)
-    parser.add_argument("--init_epsilon", type=float, default=1)
-    parser.add_argument("--final_epsilon", type=float, default=1e-3)
-    parser.add_argument("--epochs", type=int, default=3000)
+                        help="Adam optimiser learning rate.")
+    parser.add_argument("--gamma", type=float, default=0.99,
+                        help="Future reward discount rate")
+    parser.add_argument("--init_epsilon", type=float, default=1,
+                        help="Initial epsilon value for random action selection.")
+    parser.add_argument("--final_epsilon", type=float, default=1e-3,
+                        help="Minimum epsilon value for exploration.")
+    parser.add_argument("--epochs", type=int, default=3000,
+                        help="Number of epochs to train the agent.")
     parser.add_argument("--target_network_update", type=int, default=5,
                         help="Epoch interval to update the target network.")
-    parser.add_argument("--saving_interval", type=int, default=500)
-    parser.add_argument("--epsilon_decay_period", type=int, default=2000)
-    parser.add_argument("--state_rep", type=str, default="heuristic")
-    parser.add_argument("--log_dir", type=str, default="runs")
+    parser.add_argument("--saving_interval", type=int, default=500,
+                        help="Epoch interval between model checkpoints.")
+    parser.add_argument("--epsilon_decay_period", type=int, default=2000,
+                        help="Number of epochs to linearly decay the epsilon over.")
+    parser.add_argument("--state_rep", type=str, default="heuristic",
+                        help="State representation for the Tetris game. Heuristic or 1D.")
+    parser.add_argument("--log_dir", type=str, default="runs",
+                        help="Directory to save TensorBoard data to.")
     parser.add_argument("--load_file", type=str, default=None,
                         help="Path to partially trained model")
-    parser.add_argument("--save_dir", type=str,
-                        default=f"runs/run-info")
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--comment", type=str, default="test",
+    parser.add_argument("--save_dir", type=str, default=f"runs/run-info",
+                        help="Directory to save model and run info to")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Seed value for environment.")
+    parser.add_argument("--comment", type=str, default=None,
                         help="Run comment for TensorBoard writer.")
 
     args = parser.parse_args()
@@ -104,7 +122,7 @@ class MBDQN:
         while self.epoch < self.total_epochs:
             action, new_state = self.get_action_and_new_state()
 
-            reward, done = self.env.step(action)
+            reward, done = self.env.step(action, self.one_piece)
             if self.render:
                 self.env.render()
             ep_score += reward
@@ -146,7 +164,7 @@ class MBDQN:
                 if self.render:
                     self.env.render()
                 action, _ = self.get_action_and_new_state()
-                reward, done = self.env.step(action)
+                reward, done = self.env.step(action, self.one_piece)
                 ep_score += reward
                 timesteps += 1
 
@@ -302,6 +320,7 @@ class MBDQN:
         self.target_network_update = args.target_network_update
         self.saving_interval = args.saving_interval
         self.load_file = args.load_file
+        self.one_piece = args.one_piece
 
         # Seed randomness
         if args.seed == None:

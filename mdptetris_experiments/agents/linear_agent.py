@@ -106,7 +106,7 @@ class LinearGame():
                 self.board.cancel_last_move()
         return states
 
-    def step(self, action: Tuple[int, int]) -> Tuple[int, bool]:
+    def step(self, action: Tuple[int, int], new_piece: bool=True) -> Tuple[int, bool]:
         """
         Make one action step given the action. 
 
@@ -118,7 +118,8 @@ class LinearGame():
         reward = self.board.drop_piece(
             self.pieces[self.current_piece].orientations[action[0]], action[1])
         done = self.board.wall_height > self.board_height
-        self.new_piece()
+        if new_piece:
+            self.new_piece()
         self.lines_cleared += reward
         return reward, done
 
