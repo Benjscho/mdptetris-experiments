@@ -32,6 +32,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--init_epsilon", type=float, default=1)
     parser.add_argument("--final_epsilon", type=float, default=1e-3)
+    parser.add_argument("--total_timesteps", type=int, default=1e7)
     parser.add_argument("--epochs", type=int, default=3000)
     parser.add_argument("--target_network_update", type=int, default=5,
                         help="Epoch interval to update the target network.")
