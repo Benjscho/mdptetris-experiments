@@ -122,9 +122,9 @@ class MBDQN:
         while self.epoch < self.total_epochs:
             action, new_state = self.get_action_and_new_state()
 
-            reward, done = self.env.step(action, self.one_piece)
             if self.render:
                 self.env.render()
+            reward, done = self.env.step(action, self.one_piece)
             ep_score += reward
             self.timestep += 1
 
