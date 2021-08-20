@@ -167,6 +167,8 @@ class MBDQN:
                 reward, done = self.env.step(action, self.one_piece)
                 ep_score += reward
                 timesteps += 1
+                if self.one_piece and ep_score > 100:
+                    break
 
             episode_rewards.append(ep_score)
             episode_durations.append(timesteps)
