@@ -38,6 +38,8 @@ def get_args() -> argparse.Namespace:
                         help="Number of network updates per iteration")
     parser.add_argument("--alpha", type=float, default=1e-3,
                         help="Learning rate for actor and critic optimisers")
+    parser.add_argument("--gamma", type=float, default=0.99,
+                        help="Discount rate for rewards to go.")
     parser.add_argument("--clip", type=float, default=0.2,
                         help="Clip value for network update")
     parser.add_argument("--saving_interval", type=int, default=100,
@@ -277,7 +279,7 @@ class PPO():
         rtg_batch = []
         discounted_reward = torch.zeros(rewards[0].size()).to(self.device)
         for reward, done in zip(reversed(rewards), reversed(done)):
-            discounted_reward = reward + discounted_reward * self.alpha
+            discounted_reward = reward + discounted_reward * self.gamma
             rtg_batch.insert(0, discounted_reward)
             discounted_reward = discounted_reward * ~done
         return torch.cat(rtg_batch)
@@ -407,6 +409,7 @@ class PPO():
         self.max_total_timesteps = 1.5e8
         self.nb_games = 8
         self.alpha = 1e-3
+        self.gamma = 0.99
         self.saving_interval = 100
         self.clip = 0.2
         self.updates_per_iter = 5
