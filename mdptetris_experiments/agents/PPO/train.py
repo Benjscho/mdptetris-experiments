@@ -257,11 +257,11 @@ class PPO():
                 critic_loss = nn.MSELoss()(V, rewards_tg)
 
                 self.actor_optimiser.zero_grad()
-                actor_loss.backward(retain_graph=True)
+                actor_loss.backward(retain_graph=False)
                 self.actor_optimiser.step()
 
                 self.critic_optimiser.zero_grad()
-                critic_loss.backward(retain_graph=True)
+                critic_loss.backward(retain_graph=False)
                 self.critic_optimiser.step()
 
             avg_rewards = torch.mean(torch.cat(rewards))
