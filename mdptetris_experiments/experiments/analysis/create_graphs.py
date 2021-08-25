@@ -57,7 +57,7 @@ def read_result_csv(file_path: str) -> List:
     return t[0]
 
 
-def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str):
+def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str, alpha: float=0.8, grouping: int=20):
     """
     Method to take in a list of MBDQN run directories, iterate through them
     to collect run information, and plot the resulting data. 
@@ -84,11 +84,10 @@ def analyse_MBDQN(run_dirs: List[str], title: str, save_file: str):
 
     plt.figure(save_file)
     plt.title(title)
-    grouping = 20
     for dir in run_dirs:
         df = pd.DataFrame(run_epochs[dir])
         df = df.astype(float)
-        df = smooth_data(df, 0.8, grouping)
+        df = smooth_data(df, alpha, grouping)
         plt.plot([i*grouping for i in range(len(df))], df,
                  label=run_args[dir].state_rep.capitalize())
     plt.legend(title="State representation")
@@ -159,6 +158,7 @@ def main():
                   "(a) MBDQN learning rate for single piece episodes", "mbdqn-1piece")
     analyse_MBDQN(
         MBDQN_RUNS, "(b) MBDQN learning rate on standard Tetris", "mbdqn")
+    analyse_MBDQN([MBDQN_RUNS[0]], "MBDQN learning rate 1D only", "mbdqn-1d", 0.8, 20)
 
 
 if __name__ == '__main__':
