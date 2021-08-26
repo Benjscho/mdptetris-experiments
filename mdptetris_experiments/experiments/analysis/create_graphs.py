@@ -23,6 +23,8 @@ MBDQN_RUNS = [ROOT_RUN_DIR +
 MBDQN_1PIECE_RUNS = [ROOT_RUN_DIR +
                      i for i in ["20210713T101844Z", "20210803T070646Z"]]
 PPO_RUNS = [ROOT_RUN_DIR + i for i in ["20210730T093417Z", "20210802T205340Z"]]
+MBDQN_RUNS_SUPPLEMENTARY = [ROOT_RUN_DIR +
+              i for i in ["20210809T092959Z", "20210809T095013Z"]]
 
 
 def get_run_args(run_dirs: List[str]) -> dict:
@@ -159,6 +161,7 @@ def main():
     analyse_MBDQN(
         MBDQN_RUNS, "(b) MBDQN learning rate on standard Tetris", "mbdqn")
     analyse_MBDQN([MBDQN_RUNS[0]], "MBDQN learning rate 1D only", "mbdqn-1d", 0.8, 20)
+    analyse_MBDQN(MBDQN_RUNS_SUPPLEMENTARY, "MBDQN learning rate, longer duration", "mbdqn-10_000", 0.8, 20)
 
 
 if __name__ == '__main__':
