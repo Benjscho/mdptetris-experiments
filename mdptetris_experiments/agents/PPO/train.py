@@ -155,9 +155,8 @@ class PPO():
         """
         # Initialise hyperparams using args
         self._init_hyperparams(args)
-
         self.envs = MultiEnv(board_height=self.board_height,
-                             board_width=self.board_width, seed=self.seed, nb_envs=self.nb_games)
+                            board_width=self.board_width, seed=self.seed, nb_envs=self.nb_games)
         print("Agents created")
         self.actor = NN1DAction(
             self.envs.observation_space, self.envs.action_space).to(self.device)
@@ -301,17 +300,17 @@ class PPO():
 
         episode_rewards = []
         episode_durations = []
-        done = True
         for i in range(nb_episodes):
             obs = env.reset()
             ep_score = 0
             timesteps = 0
+            done = False
             while not done:
                 timesteps += 1
                 obs = torch.FloatTensor(obs).to(self.device)
                 probs = actor(obs)
-                dist = functional.softmax(probs)
-                action = torch.argmax(dist).item()
+                dist = torch.distributions.MultivariateNormal(probs, self.cov_matrix)
+                action = dist.sample()
                 obs, reward, done, info = env.step(action)
                 if self.render:
                     env.render()
@@ -494,7 +493,7 @@ if __name__ == "__main__":
     if args['test']:
         assert(args['load_dir'] != None)
         agent = PPO(args)
-        agent.test_performance(10000)
+        agent.test_performance()
     else:
         agent = PPO(args)
         agent.train()
