@@ -492,9 +492,9 @@ def test(args: dict):
 if __name__ == "__main__":
     args = vars(get_args())
     if args['test']:
-        assert(args['load_file'] != None)
+        assert(args['load_dir'] != None)
         agent = PPO(args)
-        agent.test()
+        agent.test_performance(10000)
     else:
         agent = PPO(args)
         agent.train()
