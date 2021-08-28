@@ -87,6 +87,12 @@ PPO | (10, 10) | Standard | (Board inc. Piece 1D) | lines cleared | 20210802T205
 Good runs: 
 - Garlick: 20210809T113947Z - Clearing lines in the 10s by the end
 
+
+## PPO runs
+0.5 clip - 20210826T082657Z
+0.2 clip - 20210827T095216Z
+0.8 clip - 20210827T0957
+
 ## Data to collect in experiments
 
 Algorithm | Data 
