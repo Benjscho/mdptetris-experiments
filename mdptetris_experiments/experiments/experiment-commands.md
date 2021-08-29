@@ -25,3 +25,6 @@
 
 ### PPO Small Board
 `python mdptetris_experiments/agents/PPO2/main.py --board_height=10`
+
+### PPO Clip experiments
+`python mdptetris_experiments/agents/PPO/train.py --clip=0.5 --gpu=3 --max_total_timesteps=50000000`

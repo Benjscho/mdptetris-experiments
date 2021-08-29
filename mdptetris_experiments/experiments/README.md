@@ -90,8 +90,8 @@ Good runs:
 
 ## PPO runs
 0.5 clip - 20210826T082657Z
-0.2 clip - 20210827T095216Z
-0.8 clip - 20210827T0957
+0.2 clip - 20210828T071816Z
+0.8 clip - 20210827T100614Z
 
 ## Data to collect in experiments
 

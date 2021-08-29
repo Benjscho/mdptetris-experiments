@@ -27,6 +27,8 @@ MBDQN_RUNS_SUPPLEMENTARY = [ROOT_RUN_DIR +
               i for i in ["20210809T092959Z", "20210809T095013Z"]]
 MBDQN_RUNS_SUPPLEMENTARY_2 = [ROOT_RUN_DIR +
               i for i in ["20210809T112302Z"]]
+PPO_CLIP_RUNS = [ROOT_RUN_DIR +
+              i for i in ["20210828T071816Z", "20210826T082657Z", "20210827T100614Z"]]
             
 
 
@@ -153,6 +155,50 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
     plt.savefig(SAVE_DIR + save_file + ".png")
 
 
+def analyse_PPO_clip(run_dirs: List[str], title: str, save_file: str, limit: int = 40_000_000):
+    """
+    Method to take in a list of PPO run directories, iterate through them
+    to collect run information, and plot the resulting data. 
+
+    :param run_dirs: list of run result directories
+    :param title: Title for the resulting graph
+    :param save_file: Name for the save file
+    """
+    run_args = {}
+    for dir in run_dirs:
+        with open(dir + "/args.txt") as f:
+            data = f.read()
+            run_args[dir] = ast.literal_eval(data)
+
+    avg_rewards = {}
+    timesteps = {}
+
+    for dir in run_dirs:
+        timesteps[dir] = pd.read_csv(dir + "/rewards.csv")
+
+    # Print hyperparams
+    for dir in run_dirs:
+        print()
+        print(f"{save_file} Hyperparameters:")
+        for key in run_args[dir]:
+            if run_args[dir][key]:
+                print(
+                    f"{key} & {run_args[dir][key]} \\\\".capitalize().replace("_", " "))
+
+    plt.figure(save_file)
+    plt.title(title)
+    grouping = 1
+    for dir in run_dirs:
+        df = timesteps[dir]
+        df = smooth_data(df, 0.8, grouping)
+        plt.plot(df['Step'], df['Value'], label=run_args[dir]['clip'])
+    plt.legend(title="Clip value")
+    plt.xlabel("Timesteps")
+    plt.xlim([0,limit])
+    plt.ylabel(f"Average reward per timestep")
+    plt.savefig(SAVE_DIR + save_file + ".png")
+
+
 def main():
     """
     Define main method to analyse PPO, and MBDQN runs specified in the global
@@ -166,6 +212,7 @@ def main():
     analyse_MBDQN([MBDQN_RUNS[0]], "MBDQN learning rate 1D only", "mbdqn-1d", 0.8, 20)
     analyse_MBDQN(MBDQN_RUNS_SUPPLEMENTARY, "MBDQN learning rate, longer duration (a)", "mbdqn-10_000", 0.8, 20)
     analyse_MBDQN(MBDQN_RUNS_SUPPLEMENTARY_2, "MBDQN learning rate, longer duration (b)", "mbdqn-100_000", 0.8, 20)
+    analyse_PPO_clip(PPO_CLIP_RUNS, "PPO learning rate varying clip parameter", "ppo-clip")
 
 
 if __name__ == '__main__':
