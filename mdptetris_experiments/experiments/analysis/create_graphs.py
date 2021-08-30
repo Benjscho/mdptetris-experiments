@@ -155,7 +155,7 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
     plt.savefig(SAVE_DIR + save_file + ".png")
 
 
-def analyse_PPO_clip(run_dirs: List[str], title: str, save_file: str, limit: int = 40_000_000):
+def analyse_PPO_clip(run_dirs: List[str], title: str, save_file: str, limit: int = 50_000_000):
     """
     Method to take in a list of PPO run directories, iterate through them
     to collect run information, and plot the resulting data. 
@@ -212,7 +212,7 @@ def main():
     analyse_MBDQN([MBDQN_RUNS[0]], "MBDQN learning rate 1D only", "mbdqn-1d", 0.8, 20)
     analyse_MBDQN(MBDQN_RUNS_SUPPLEMENTARY, "MBDQN learning rate, longer duration (a)", "mbdqn-10_000", 0.8, 20)
     analyse_MBDQN(MBDQN_RUNS_SUPPLEMENTARY_2, "MBDQN learning rate, longer duration (b)", "mbdqn-100_000", 0.8, 20)
-    analyse_PPO_clip(PPO_CLIP_RUNS, "PPO learning rate varying clip parameter", "ppo-clip")
+    analyse_PPO_clip(PPO_CLIP_RUNS, "PPO learning rate as clip value varies", "ppo-clip")
 
 
 if __name__ == '__main__':

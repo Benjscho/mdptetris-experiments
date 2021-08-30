@@ -283,12 +283,12 @@ class MBDQN:
         """
         self.epochs.append(ep_score)
         print(f"Epoch: {self.epoch}, score: {ep_score}")
-        self.writer.add_scalar(f'TD-Lambda-{self.runid}/Lines cleared per epoch',
+        self.writer.add_scalar(f'MBDQN-{self.runid}/Lines cleared per epoch',
                                ep_score, self.epoch - 1)
-        self.writer.add_scalar(f'TD-Lambda-{self.runid}/Lines cleared over last 100 timesteps',
+        self.writer.add_scalar(f'MBDQN-{self.runid}/Lines cleared over last 100 timesteps',
                                sum(self.timesteps[-100:]), self.timestep - 1)
         self.writer.add_scalar(
-            f'TD-Lambda-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
+            f'MBDQN-{self.runid}/Epsilon vlaue', self.epsilon, self.epoch - 1)
 
     def _init_hyperparams(self, args: argparse.Namespace):
         """
