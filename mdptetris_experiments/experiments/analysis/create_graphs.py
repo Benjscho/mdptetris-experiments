@@ -150,8 +150,8 @@ def analyse_PPO(run_dirs: List[str], title: str, save_file: str):
         df = smooth_data(df, 0.8, grouping)
         plt.plot(df['Step'], df['Value'], label=run_args[dir]['board_height'])
     plt.legend(title="Board height")
-    plt.xlabel("Timesteps")
-    plt.ylabel(f"Average reward per timestep")
+    plt.xlabel("Time steps")
+    plt.ylabel(f"Average reward per time step")
     plt.savefig(SAVE_DIR + save_file + ".png")
 
 
@@ -193,9 +193,9 @@ def analyse_PPO_clip(run_dirs: List[str], title: str, save_file: str, limit: int
         df = smooth_data(df, 0.8, grouping)
         plt.plot(df['Step'], df['Value'], label=run_args[dir]['clip'])
     plt.legend(title="Clip value")
-    plt.xlabel("Timesteps")
+    plt.xlabel("Time steps")
     plt.xlim([0,limit])
-    plt.ylabel(f"Average reward per timestep")
+    plt.ylabel(f"Average reward per time step")
     plt.savefig(SAVE_DIR + save_file + ".png")
 
 

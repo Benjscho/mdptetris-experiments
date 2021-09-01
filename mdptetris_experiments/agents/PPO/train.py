@@ -20,38 +20,40 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='0',
                         help="The GPU to train the agent on")
-    parser.add_argument("--test", action='store_true')
-    parser.add_argument("--render", action='store_true')
+    parser.add_argument("--test", action='store_true',
+                        help="Test a trained agent. A load_dir that contains a valid trained actor model must also be provided.")
+    parser.add_argument("--render", action='store_true',
+                        help="Render the agent when testing")
     parser.add_argument("--board_height", type=int, default=20,
-                        help="Board height for the Tetris environments")
+                        help="Board height for the Tetris environments.")
     parser.add_argument("--board_width", type=int, default=10,
-                        help="Board width for the Tetris environments")
+                        help="Board width for the Tetris environments.")
     parser.add_argument("--max_episode_timesteps", type=int,
-                        default=2000, help="Max timesteps in an episode rollout")
+                        default=2000, help="Max timesteps in an episode rollout.")
     parser.add_argument("--max_epochs", type=int,
-                        default=20000, help="Max epochs for training")
+                        default=20000, help="Max epochs to train agent.")
     parser.add_argument("--max_total_timesteps", type=int,
-                        default=1.5e8, help="Max timesteps to train")
+                        default=1.5e8, help="Max timesteps to train.")
     parser.add_argument("--nb_games", type=int, default=8,
-                        help="Number of environments to run in parallel")
+                        help="Number of Tetris environments to run in parallel.")
     parser.add_argument("--updates_per_iter", type=int, default=5,
-                        help="Number of network updates per iteration")
+                        help="Number of network updates per iteration.")
     parser.add_argument("--alpha", type=float, default=1e-3,
-                        help="Learning rate for actor and critic optimisers")
+                        help="Learning rate for actor and critic optimisers.")
     parser.add_argument("--gamma", type=float, default=0.99,
                         help="Discount rate for rewards to go.")
     parser.add_argument("--clip", type=float, default=0.2,
-                        help="Clip value for network update")
+                        help="Clip value for network update.")
     parser.add_argument("--saving_interval", type=int, default=100,
-                        help="Training iterations between model and log saves")
+                        help="Training iterations between model and log saves.")
     parser.add_argument("--log_dir", type=str, default="runs",
-                        help="Directory for TensorBoard logs")
+                        help="Directory for TensorBoard logs.")
     parser.add_argument("--load_dir", type=str, default=None,
                         help="Path to partially trained actor and critic models.")
     parser.add_argument("--save_dir", type=str,
-                        default=f"runs/run-info", help="Path to save models")
+                        default=f"runs/run-info", help="Path to save models.")
     parser.add_argument("--seed", type=int, default=None,
-                        help="Seed value for environments and randomness")
+                        help="Seed value for environments and randomness.")
     parser.add_argument("--comment", type=str, default="test",
                         help="Run comment for TensorBoard writer.")
 

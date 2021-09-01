@@ -14,6 +14,10 @@ running `pip install -e .`.
 
 ## Run experiments
 
+Below are commands to get started with running the agents provided. Further
+commands used can be found in
+`./mdptetris_experiments/experiments/experiment-commands.md`. 
+
 ### Linear agent
 
 The linear agent can be run with the default weights created by Pierre 
@@ -37,7 +41,6 @@ cleared = agent.play_game()
 print(f"{cleared:,} rows cleared")
 ```
 
-
 ### MBDQN 
 
 The model-based DQN agent utilises a similar approach to the linear agent,
@@ -53,4 +56,31 @@ python mdptetris_experiments/agents/MBDQN/train.py
 A trained agent can then be tested by providing it with a model load file:
 ```bash
 python mdptetris_experiments/agents/MBDQN/train.py --test --render --load_file <LOAD_FILE_PATH>
+```
+
+The agent has a number of hyperparameters that can be varied via input from the
+command line.  You can view these by running the program with the `-h` or
+`--help` parameter:
+```bash
+python mdptetris_experiments/agents/MBDQN/train.py -h
+```
+
+For example, to run the one piece per episode training experiments, where each
+episode only drops one of the 7 Tetris pieces, you can use the `--one_piece` 
+option. To specify which GPU to use while training use the option
+`--gpu=<GPU-ID-HERE>`. To vary the board height, use `--board_height=10`.
+
+### PPO
+
+The PPO-Clip agent is a model-free agent that learns through interaction with
+the environment.  To train the agent with default settings run:
+```bash
+python mdptetris_experiments/agents/PPO/train.py
+```
+
+Similarly to the MBDQN agent, there are a number of hyperparameters that can be
+varied through command line options. You can see the available options by
+running with the `-h` parameter:
+```bash
+python mdptetris_experiments/agents/PPO/train.py -h
 ```
