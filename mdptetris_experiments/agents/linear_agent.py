@@ -230,7 +230,7 @@ if __name__ == "__main__":
     lg = LinearGame()
     start = time.time()
     print("Starting")
-    cleared = lg.play_game(render)
+    cleared, duration = lg.play_game(render)
     end = time.time()
     print(f"{cleared} rows cleared")
     print(f"That took {end - start}s")
